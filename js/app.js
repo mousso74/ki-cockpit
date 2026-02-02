@@ -139,8 +139,9 @@ function generatePrompts() {
     const prompt = generateQuestionsPrompt(problemText);
     session.phase1Prompt = prompt;
 
-    // Display prompt
-    document.getElementById('phase1-prompt').textContent = prompt;
+    // Display prompt (show user part only, system prompt is too long)
+    const displayText = prompt.user || prompt;
+    document.getElementById('phase1-prompt').textContent = displayText;
 
     // Move to next state
     showState(1);
@@ -420,8 +421,9 @@ function generateSolvePrompts() {
     const prompt = generateSolvePrompt(session.problem, questionsAndAnswers);
     session.phase2Prompt = prompt;
 
-    // Display prompt
-    document.getElementById('phase2-prompt').textContent = prompt;
+    // Display prompt (show user part only, system prompt is too long)
+    const displayText = prompt.user || prompt;
+    document.getElementById('phase2-prompt').textContent = displayText;
 
     // Move to next state
     showState(4);
