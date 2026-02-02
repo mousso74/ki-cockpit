@@ -584,12 +584,52 @@ function openAsEmail() {
 // ========================================
 
 /**
- * Saves the current session
+ * Saves the current session with all data
  */
 async function saveCurrentSession() {
     console.log('[app.js] Saving current session');
 
+    // Get title and create slug
+    const title = document.getElementById('sessionTitle')?.value || 'Unbenannte Session';
+    const titleSlug = title.toLowerCase()
+        .replace(/[^a-z0-9äöüß]+/g, '-')
+        .replace(/^-|-$/g, '')
+        .substring(0, 40);
+
+    // Collect all answers from the question textareas
+    const answers = [];
+    if (session.deduplicatedQuestions) {
+        session.deduplicatedQuestions.forEach((q, index) => {
+            const answerEl = document.getElementById(`answer-${index}`);
+            answers.push(answerEl?.value || '');
+        });
+    }
+
+    // Collect phase 1 outputs (questions from AIs)
+    const phase1Outputs = {
+        chatgpt: document.getElementById('chatgpt-questions')?.value || '',
+        claude: document.getElementById('claude-questions')?.value || '',
+        gemini: document.getElementById('gemini-questions')?.value || ''
+    };
+
+    // Collect phase 2 outputs (solutions from AIs)
+    const phase2Outputs = {
+        chatgpt: document.getElementById('chatgpt-solution')?.value || '',
+        claude: document.getElementById('claude-solution')?.value || '',
+        gemini: document.getElementById('gemini-solution')?.value || ''
+    };
+
+    // Update session object with all data
+    session.title = title;
+    session.titleSlug = titleSlug;
+    session.problem = document.getElementById('problem-input')?.value || session.problem;
+    session.phase1Outputs = phase1Outputs;
+    session.answers = answers;
+    session.phase2Outputs = phase2Outputs;
     session.updatedAt = new Date().toISOString();
+    if (!session.createdAt) {
+        session.createdAt = session.updatedAt;
+    }
 
     try {
         await saveSession(session);
@@ -669,45 +709,161 @@ async function viewSession(id) {
 function displaySessionDetails(session) {
     const modal = document.getElementById('archiveModal');
 
-    const problemText = session.problem?.raw || session.problem?.cleaned || 'Kein Problem gespeichert';
-    const synthesisText = session.synthesis || session.compare?.synthesis || 'Keine Synthese vorhanden';
+    const title = session.title || session.titleSlug || 'Session';
+    const problem = session.problem || 'Kein Problem gespeichert';
+    const synthesis = session.synthesis || 'Keine Synthese vorhanden';
+
+    // Deduplizierte Fragen
+    let questionsHtml = '';
+    if (session.deduplicatedQuestions && session.deduplicatedQuestions.length > 0) {
+        questionsHtml = session.deduplicatedQuestions.map((q, i) => {
+            const answer = session.answers ? session.answers[i] || 'Keine Antwort' : 'Keine Antwort';
+            return `<div class="qa-item">
+                <div class="question"><strong>F${i+1}:</strong> ${q.question || q}</div>
+                <div class="answer"><strong>A:</strong> ${answer}</div>
+            </div>`;
+        }).join('');
+    } else {
+        questionsHtml = '<p>Keine Fragen gespeichert</p>';
+    }
+
+    // KI-Lösungen
+    const chatgptSolution = session.phase2Outputs?.chatgpt || 'Nicht vorhanden';
+    const claudeSolution = session.phase2Outputs?.claude || 'Nicht vorhanden';
+    const geminiSolution = session.phase2Outputs?.gemini || 'Nicht vorhanden';
 
     let html = `
         <div class="session-detail">
             <div class="session-header">
-                <h2>${session.title || session.titleSlug || 'Session'}</h2>
+                <h2>${title}</h2>
                 <span class="session-date">${new Date(session.createdAt || Date.now()).toLocaleDateString('de-DE')}</span>
             </div>
 
             <div class="session-section">
                 <h3>📋 Problemstellung</h3>
-                <div class="session-content">${problemText}</div>
+                <div class="session-content">${problem}</div>
+            </div>
+
+            <div class="session-section">
+                <h3>❓ Fragen & Antworten</h3>
+                <div class="session-content qa-list">${questionsHtml}</div>
+            </div>
+
+            <div class="session-section">
+                <h3>🤖 KI-Lösungen</h3>
+                <div class="ki-solutions-tabs">
+                    <button class="tab-btn active" onclick="showSolutionTab('chatgpt')">ChatGPT</button>
+                    <button class="tab-btn" onclick="showSolutionTab('claude')">Claude</button>
+                    <button class="tab-btn" onclick="showSolutionTab('gemini')">Gemini</button>
+                </div>
+                <div id="solution-chatgpt" class="solution-content active">${formatMarkdown(chatgptSolution)}</div>
+                <div id="solution-claude" class="solution-content" style="display:none">${formatMarkdown(claudeSolution)}</div>
+                <div id="solution-gemini" class="solution-content" style="display:none">${formatMarkdown(geminiSolution)}</div>
             </div>
 
             <div class="session-section">
                 <h3>🎯 Synthese</h3>
-                <div class="session-content synthesis-formatted">${formatMarkdown(synthesisText)}</div>
+                <div class="session-content synthesis-formatted">${formatMarkdown(synthesis)}</div>
             </div>
 
             <div class="session-actions">
-                <button onclick="copySessionText('${encodeURIComponent(synthesisText)}')" class="btn-small">📋 Synthese kopieren</button>
-                <button onclick="closeModal()" class="btn-small">Schließen</button>
+                <button onclick="exportSessionMarkdown()" class="btn-small btn-export">📥 Als Markdown exportieren</button>
+                <button onclick="copySessionMarkdown()" class="btn-small">📋 Markdown kopieren</button>
                 <button onclick="loadArchive()" class="btn-small">← Zurück zur Liste</button>
+                <button onclick="closeModal()" class="btn-small">Schließen</button>
             </div>
         </div>
     `;
 
     modal.innerHTML = html;
+    window.currentSessionData = session;
 }
 
 /**
- * Copies session text to clipboard
+ * Shows a specific KI solution tab
+ * @param {string} ki - 'chatgpt', 'claude', or 'gemini'
+ */
+function showSolutionTab(ki) {
+    document.querySelectorAll('.solution-content').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    document.getElementById('solution-' + ki).style.display = 'block';
+    event.target.classList.add('active');
+}
+
+/**
+ * Generates markdown from session data
+ * @param {Object} session - Session data
+ * @returns {string} - Markdown string
+ */
+function generateSessionMarkdown(session) {
+    const title = session.title || session.titleSlug || 'Session';
+    const date = new Date(session.createdAt || Date.now()).toLocaleDateString('de-DE');
+    const problem = session.problem || 'Kein Problem';
+    const synthesis = session.synthesis || 'Keine Synthese';
+
+    let md = `# ${title}\n`;
+    md += `**Datum:** ${date}\n\n`;
+    md += `---\n\n`;
+
+    md += `## 📋 Problemstellung\n\n${problem}\n\n`;
+
+    md += `## ❓ Fragen & Antworten\n\n`;
+    if (session.deduplicatedQuestions && session.deduplicatedQuestions.length > 0) {
+        session.deduplicatedQuestions.forEach((q, i) => {
+            const answer = session.answers ? session.answers[i] || '-' : '-';
+            md += `### Frage ${i+1}\n`;
+            md += `**${q.question || q}**\n\n`;
+            md += `*Antwort:* ${answer}\n\n`;
+        });
+    }
+
+    md += `## 🤖 KI-Lösungen\n\n`;
+    md += `### ChatGPT\n${session.phase2Outputs?.chatgpt || 'Nicht vorhanden'}\n\n`;
+    md += `### Claude\n${session.phase2Outputs?.claude || 'Nicht vorhanden'}\n\n`;
+    md += `### Gemini\n${session.phase2Outputs?.gemini || 'Nicht vorhanden'}\n\n`;
+
+    md += `## 🎯 Synthese\n\n${synthesis}\n\n`;
+
+    md += `---\n*Exportiert aus KI-Cockpit*\n`;
+
+    return md;
+}
+
+/**
+ * Copies session as markdown to clipboard
+ */
+function copySessionMarkdown() {
+    const md = generateSessionMarkdown(window.currentSessionData);
+    navigator.clipboard.writeText(md).then(() => {
+        showToast('Markdown in Zwischenablage kopiert!', 'success');
+    });
+}
+
+/**
+ * Exports session as markdown file download
+ */
+function exportSessionMarkdown() {
+    const session = window.currentSessionData;
+    const md = generateSessionMarkdown(session);
+    const filename = `${session.titleSlug || 'session'}_${new Date().toISOString().split('T')[0]}.md`;
+
+    const blob = new Blob([md], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+/**
+ * Copies session text to clipboard (legacy)
  * @param {string} encodedText - URL-encoded text
  */
 function copySessionText(encodedText) {
     const text = decodeURIComponent(encodedText);
     navigator.clipboard.writeText(text).then(() => {
-        alert('Kopiert!');
+        showToast('Kopiert!', 'success');
     });
 }
 

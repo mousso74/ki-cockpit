@@ -1011,3 +1011,72 @@ footer {
     outline: none;
     border-color: #74aa9c;
 }
+
+/* ========================================
+   Session Detail View V2.1
+   ======================================== */
+
+.qa-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.qa-item {
+    background: #1a1a2e;
+    padding: 12px;
+    border-radius: 6px;
+    border-left: 3px solid #74aa9c;
+}
+
+.qa-item .question {
+    margin-bottom: 8px;
+    color: #eee;
+}
+
+.qa-item .answer {
+    color: #aaa;
+    font-style: italic;
+}
+
+.ki-solutions-tabs {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 10px;
+}
+
+.tab-btn {
+    padding: 8px 16px;
+    background: #3a3a5a;
+    border: none;
+    border-radius: 4px 4px 0 0;
+    color: #aaa;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.tab-btn:hover {
+    background: #4a4a6a;
+}
+
+.tab-btn.active {
+    background: #2a2a4a;
+    color: #fff;
+}
+
+.solution-content {
+    background: #2a2a4a;
+    padding: 15px;
+    border-radius: 0 0 8px 8px;
+    max-height: 300px;
+    overflow-y: auto;
+    line-height: 1.6;
+}
+
+.btn-export {
+    background: #74aa9c !important;
+}
+
+.btn-export:hover {
+    background: #5a8a7c !important;
+}
