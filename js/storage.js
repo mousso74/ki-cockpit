@@ -1,8 +1,8 @@
 /* ========================================
-   KI-Cockpit V1 - Storage & Backend
+   KI-Cockpit V2 - Storage & Backend
    ======================================== */
 
-const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbzpQM3D45N9dRJt5-afYVSgJZHo2w-5Qu2ZJuL_Tg01kns4dXVF3dTGpGSY8IwPnU-X/exec';
+const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbxjjbLv1atYH43KorOK3JxWrpeGzHGAbk64wcAl-sWJtC3qcBVfpigO4iT4XSPOui14/exec';
 
 /**
  * Saves a session to the backend
@@ -11,6 +11,12 @@ const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbzpQM3D45N9dRJt5-af
  */
 async function saveSession(sessionData) {
     console.log('[storage.js] Saving session:', sessionData.id);
+
+    // Add titleSlug from sessionTitle input
+    const title = document.getElementById('sessionTitle')?.value || '';
+    const titleSlug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').substring(0, 40);
+    sessionData.titleSlug = titleSlug;
+    sessionData.name = title || 'Unbenannte Session';
 
     try {
         const response = await fetch(BACKEND_URL, {

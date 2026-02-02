@@ -1,5 +1,5 @@
 /* ========================================
-   KI-Cockpit V1 - Main Application
+   KI-Cockpit V2 - Main Application
    ======================================== */
 
 // ========================================
@@ -37,7 +37,7 @@ let session = {
 // ========================================
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('[app.js] KI-Cockpit V1 initialized');
+    console.log('[app.js] KI-Cockpit V2 initialized');
     showState(0);
 
     // Template selection handling
@@ -371,14 +371,17 @@ async function startSynthesis() {
         // Save result
         session.synthesis = result;
 
-        // Display result
-        if (result.summary) {
-            contentDiv.textContent = result.summary;
+        // Save synthesis text for copy functions
+        if (result.data && result.data.synthesis) {
+            window.currentSynthesis = result.data.synthesis;
         } else if (result.synthesis) {
-            contentDiv.textContent = result.synthesis;
-        } else {
-            contentDiv.textContent = JSON.stringify(result, null, 2);
+            window.currentSynthesis = result.synthesis;
+        } else if (result.summary) {
+            window.currentSynthesis = result.summary;
         }
+
+        // Display result using displaySynthesis
+        displaySynthesis(result);
 
         resultDiv.classList.remove('hidden');
         showToast('Synthese abgeschlossen!', 'success');
@@ -391,6 +394,86 @@ async function startSynthesis() {
         btn.disabled = false;
         btn.textContent = '🔮 Synthese starten';
     }
+}
+
+/**
+ * Displays the synthesis result with proper formatting
+ * @param {Object} result - The synthesis result
+ */
+function displaySynthesis(result) {
+    const container = document.getElementById('synthesis-content');
+
+    if (result.status === 'success' && result.data && result.data.synthesis) {
+        const synthesisText = result.data.synthesis;
+        const synthesisHtml = formatMarkdown(synthesisText);
+
+        container.innerHTML = `
+            <div class="synthesis-content">
+                <div class="synthesis-actions">
+                    <button onclick="copySynthesis('text')" class="btn-small">📋 Text kopieren</button>
+                    <button onclick="copySynthesis('markdown')" class="btn-small">📝 Markdown kopieren</button>
+                    <button onclick="openAsEmail()" class="btn-small">✉️ Als E-Mail</button>
+                </div>
+                <div class="synthesis-text">${synthesisHtml}</div>
+            </div>
+        `;
+    } else if (result.synthesis || result.summary) {
+        // Fallback for other response formats
+        const text = result.synthesis || result.summary;
+        const html = formatMarkdown(text);
+        container.innerHTML = `
+            <div class="synthesis-content">
+                <div class="synthesis-actions">
+                    <button onclick="copySynthesis('text')" class="btn-small">📋 Text kopieren</button>
+                    <button onclick="copySynthesis('markdown')" class="btn-small">📝 Markdown kopieren</button>
+                    <button onclick="openAsEmail()" class="btn-small">✉️ Als E-Mail</button>
+                </div>
+                <div class="synthesis-text">${html}</div>
+            </div>
+        `;
+    } else {
+        container.innerHTML = `<div class="error">Fehler: ${result.message || 'Unbekannter Fehler'}</div>`;
+    }
+}
+
+/**
+ * Formats markdown text to HTML
+ * @param {string} text - Markdown text
+ * @returns {string} - HTML string
+ */
+function formatMarkdown(text) {
+    return text
+        .replace(/## (.*?)(\n|$)/g, '<h3>$1</h3>')
+        .replace(/### (.*?)(\n|$)/g, '<h4>$1</h4>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\n- /g, '<br>• ')
+        .replace(/\n(\d+)\. /g, '<br>$1. ')
+        .replace(/\n\n/g, '</p><p>')
+        .replace(/\n/g, '<br>');
+}
+
+/**
+ * Copies the synthesis to clipboard
+ * @param {string} format - 'text' or 'markdown'
+ */
+function copySynthesis(format) {
+    const text = window.currentSynthesis || '';
+    navigator.clipboard.writeText(text).then(() => {
+        showToast('Kopiert!', 'success');
+    }).catch(() => {
+        showToast('Kopieren fehlgeschlagen', 'error');
+    });
+}
+
+/**
+ * Opens email client with synthesis
+ */
+function openAsEmail() {
+    const title = document.getElementById('sessionTitle')?.value || 'KI-Cockpit Synthese';
+    const text = window.currentSynthesis || '';
+    const subject = encodeURIComponent(`KI-Cockpit: ${title}`);
+    const body = encodeURIComponent(text.substring(0, 8000));
+    window.open(`mailto:?subject=${subject}&body=${body}`);
 }
 
 // ========================================
@@ -419,34 +502,60 @@ async function saveCurrentSession() {
  */
 async function openArchive() {
     console.log('[app.js] Opening archive');
+    await loadArchive();
+}
 
-    const modal = document.getElementById('archive-modal');
-    const listDiv = document.getElementById('archive-list');
-
-    // Show loading state
-    listDiv.innerHTML = '<p>Lade Sessions...</p>';
-    modal.classList.remove('hidden');
-
+/**
+ * Loads and displays archive sessions
+ */
+async function loadArchive() {
     try {
         const sessions = await loadSessions();
-
-        if (sessions.length === 0) {
-            listDiv.innerHTML = '<p>Keine gespeicherten Sessions gefunden.</p>';
-            return;
+        if (sessions.status === 'success' && sessions.data && sessions.data.length > 0) {
+            let html = '<div class="archive-list"><h3>Gespeicherte Sessions</h3>';
+            sessions.data.forEach(session => {
+                html += `<div class="archive-item" onclick="viewSession('${session.id}')">
+                    <span class="archive-name">${session.name || session.titleSlug || 'Unbenannt'}</span>
+                    <span class="archive-date">${new Date(session.date || session.createdAt).toLocaleDateString('de-DE')}</span>
+                </div>`;
+            });
+            html += '<button class="btn btn-secondary" onclick="closeArchiveModal()" style="margin-top:15px;width:100%;">Schließen</button></div>';
+            document.getElementById('archiveModal').innerHTML = html;
+            document.getElementById('archiveModal').style.display = 'block';
+        } else if (Array.isArray(sessions) && sessions.length > 0) {
+            // Fallback for localStorage format
+            let html = '<div class="archive-list"><h3>Gespeicherte Sessions</h3>';
+            sessions.forEach(session => {
+                html += `<div class="archive-item" onclick="viewSession('${session.id}')">
+                    <span class="archive-name">${session.name || session.titleSlug || 'Unbenannt'}</span>
+                    <span class="archive-date">${new Date(session.date || session.createdAt).toLocaleDateString('de-DE')}</span>
+                </div>`;
+            });
+            html += '<button class="btn btn-secondary" onclick="closeArchiveModal()" style="margin-top:15px;width:100%;">Schließen</button></div>';
+            document.getElementById('archiveModal').innerHTML = html;
+            document.getElementById('archiveModal').style.display = 'block';
+        } else {
+            alert('Keine Sessions gefunden');
         }
-
-        // Render session list
-        listDiv.innerHTML = sessions.map(s => `
-            <div class="session-item" onclick="loadSession('${s.id}')">
-                <div class="session-date">${new Date(s.createdAt).toLocaleString('de-DE')}</div>
-                <div class="session-preview">${(s.problem || 'Kein Problem').substring(0, 100)}...</div>
-            </div>
-        `).join('');
-
     } catch (error) {
-        console.error('[app.js] Load error:', error);
-        listDiv.innerHTML = '<p>Fehler beim Laden der Sessions.</p>';
+        alert('Fehler beim Laden: ' + error.message);
     }
+}
+
+/**
+ * Views a specific session (placeholder)
+ * @param {string} id - Session ID
+ */
+async function viewSession(id) {
+    // Später implementieren - zeigt Session-Details
+    alert('Session laden: ' + id);
+}
+
+/**
+ * Closes the archive modal
+ */
+function closeArchiveModal() {
+    document.getElementById('archiveModal').style.display = 'none';
 }
 
 /**

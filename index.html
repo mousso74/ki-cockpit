@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KI-Cockpit V1</title>
+    <title>KI-Cockpit V2</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
     <header>
-        <h1>KI-Cockpit V1</h1>
+        <h1>KI-Cockpit V2</h1>
         <div class="state-indicator">
             <span class="state-dot" data-state="0"></span>
             <span class="state-dot" data-state="1"></span>
@@ -25,6 +25,10 @@
             <div class="card">
                 <h2>Problem beschreiben</h2>
                 <p class="description">Beschreibe dein Problem oder deine Aufgabe so detailliert wie möglich.</p>
+                <div class="form-group">
+                    <label for="sessionTitle">Session-Titel (für Archiv)</label>
+                    <input type="text" id="sessionTitle" placeholder="z.B. Judopass Prüfung Susi" required>
+                </div>
                 <textarea id="problem-input" placeholder="Beschreibe hier dein Problem..."></textarea>
             </div>
             <div class="card">
@@ -194,6 +198,9 @@
 
     <!-- Toast Notification -->
     <div id="toast" class="toast hidden"></div>
+
+    <!-- Archive Modal (Simple) -->
+    <div id="archiveModal" class="modal" style="display:none;"></div>
 
     <script src="js/prompts.js"></script>
     <script src="js/parser.js"></script>
