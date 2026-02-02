@@ -744,7 +744,7 @@ async function saveCurrentSession() {
     };
 
     // Update session object with all data
-    session.title = title;
+    session.title = titleFromUi;
     session.titleSlug = titleSlug;
     session.problem = document.getElementById('problem-input')?.value || session.problem;
     session.phase1Outputs = phase1Outputs;
@@ -780,10 +780,12 @@ async function loadArchive() {
         const sessions = await loadSessions();
         if (sessions.status === 'success' && sessions.data && sessions.data.length > 0) {
             let html = '<div class="archive-list"><h3>Gespeicherte Sessions</h3>';
-            sessions.data.forEach(session => {
-                html += `<div class="archive-item" onclick="viewSession('${session.id}')">
-                    <span class="archive-name">${session.displayTitle || session.name || session.titleSlug || 'Unbenannt'}</span>
-                    <span class="archive-date">${new Date(session.date || session.createdAt).toLocaleDateString('de-DE')}</span>
+            sessions.data.forEach(s => {
+                const displayName = s.displayTitle || s.name || 'Unbenannte Session';
+                const dateStr = s.date ? new Date(s.date).toLocaleDateString('de-DE') : 'Kein Datum';
+                html += `<div class="archive-item" onclick="viewSession('${s.id}')">
+                    <span class="archive-name">${displayName}</span>
+                    <span class="archive-date">${dateStr}</span>
                 </div>`;
             });
             html += '<button class="btn btn-secondary" onclick="closeArchiveModal()" style="margin-top:15px;width:100%;">Schließen</button></div>';
@@ -792,10 +794,12 @@ async function loadArchive() {
         } else if (Array.isArray(sessions) && sessions.length > 0) {
             // Fallback for localStorage format
             let html = '<div class="archive-list"><h3>Gespeicherte Sessions</h3>';
-            sessions.forEach(session => {
-                html += `<div class="archive-item" onclick="viewSession('${session.id}')">
-                    <span class="archive-name">${session.displayTitle || session.name || session.titleSlug || 'Unbenannt'}</span>
-                    <span class="archive-date">${new Date(session.date || session.createdAt).toLocaleDateString('de-DE')}</span>
+            sessions.forEach(s => {
+                const displayName = s.displayTitle || s.name || 'Unbenannte Session';
+                const dateStr = s.date || s.createdAt ? new Date(s.date || s.createdAt).toLocaleDateString('de-DE') : 'Kein Datum';
+                html += `<div class="archive-item" onclick="viewSession('${s.id}')">
+                    <span class="archive-name">${displayName}</span>
+                    <span class="archive-date">${dateStr}</span>
                 </div>`;
             });
             html += '<button class="btn btn-secondary" onclick="closeArchiveModal()" style="margin-top:15px;width:100%;">Schließen</button></div>';
@@ -838,7 +842,12 @@ function displaySessionDetails(session) {
 
     const title = data.name || data.title || data.titleSlug || 'Session';
     const problem = data.problem || 'Kein Problem gespeichert';
-    const synthesis = data.synthesis || 'Keine Synthese vorhanden';
+
+    // Handle synthesis - could be object or string
+    let synthesis = data.synthesis || 'Keine Synthese vorhanden';
+    if (typeof synthesis === 'object') {
+        synthesis = synthesis.synthesis || synthesis.text || JSON.stringify(synthesis);
+    }
 
     // Deduplizierte Fragen
     let questionsHtml = '';
@@ -933,7 +942,12 @@ function generateSessionMarkdown(session) {
     const title = data.name || data.title || data.titleSlug || 'Session';
     const date = new Date(data.createdAt || Date.now()).toLocaleDateString('de-DE');
     const problem = data.problem || 'Kein Problem';
-    const synthesis = data.synthesis || 'Keine Synthese';
+
+    // Handle synthesis - could be object or string
+    let synthesis = data.synthesis || 'Keine Synthese';
+    if (typeof synthesis === 'object') {
+        synthesis = synthesis.synthesis || synthesis.text || JSON.stringify(synthesis);
+    }
 
     let md = `# ${title}\n`;
     md += `**Datum:** ${date}\n\n`;
