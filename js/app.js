@@ -40,6 +40,9 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('[app.js] KI-Cockpit V2.1 initialized');
     showState(0);
 
+    // Update usage display
+    updateUsageDisplay();
+
     // Template selection handling
     document.querySelectorAll('.template-option input').forEach(input => {
         input.addEventListener('change', (e) => {
@@ -190,6 +193,9 @@ async function copyPrompt(phase, aiName) {
  */
 async function analyzeQuestions() {
     console.log('[app.js] Analyzing questions with AI deduplication');
+
+    // Increment usage counter
+    incrementDedupeCounter();
 
     // Get AI outputs
     const chatgptOutput = document.getElementById('chatgpt-questions').value;
@@ -453,6 +459,9 @@ function generateSolvePrompts() {
 async function startSynthesis() {
     console.log('[app.js] Starting synthesis');
 
+    // Increment usage counter
+    incrementUsageCounter();
+
     const btn = document.getElementById('synthesis-btn');
     const resultDiv = document.getElementById('synthesis-result');
     const contentDiv = document.getElementById('synthesis-content');
@@ -613,6 +622,49 @@ function makeTitleSlug(title) {
         .substring(0, 40);
 
     return slug || 'session';
+}
+
+/**
+ * Extracts synthesis text from various formats
+ * @param {*} synthesis - Could be string, object, or nested object
+ * @returns {string} - Plain synthesis text
+ */
+function extractSynthesisText(synthesis) {
+    if (!synthesis) return 'Keine Synthese vorhanden';
+
+    // Fall 1: Bereits ein String
+    if (typeof synthesis === 'string') {
+        // Prüfen ob es ein JSON-String ist
+        try {
+            const parsed = JSON.parse(synthesis);
+            if (parsed.data && parsed.data.synthesis) {
+                return parsed.data.synthesis;
+            }
+            if (parsed.synthesis) {
+                return parsed.synthesis;
+            }
+        } catch (e) {
+            // Kein JSON, direkt zurückgeben
+            return synthesis;
+        }
+        return synthesis;
+    }
+
+    // Fall 2: Objekt mit data.synthesis
+    if (typeof synthesis === 'object') {
+        if (synthesis.data && synthesis.data.synthesis) {
+            return synthesis.data.synthesis;
+        }
+        if (synthesis.synthesis) {
+            return synthesis.synthesis;
+        }
+        if (synthesis.text) {
+            return synthesis.text;
+        }
+        return JSON.stringify(synthesis, null, 2);
+    }
+
+    return String(synthesis);
 }
 
 /**
@@ -843,11 +895,8 @@ function displaySessionDetails(session) {
     const title = data.name || data.title || data.titleSlug || 'Session';
     const problem = data.problem || 'Kein Problem gespeichert';
 
-    // Handle synthesis - could be object or string
-    let synthesis = data.synthesis || 'Keine Synthese vorhanden';
-    if (typeof synthesis === 'object') {
-        synthesis = synthesis.synthesis || synthesis.text || JSON.stringify(synthesis);
-    }
+    // Extract synthesis text from various formats
+    const synthesis = extractSynthesisText(data.synthesis);
 
     // Deduplizierte Fragen
     let questionsHtml = '';
@@ -943,11 +992,8 @@ function generateSessionMarkdown(session) {
     const date = new Date(data.createdAt || Date.now()).toLocaleDateString('de-DE');
     const problem = data.problem || 'Kein Problem';
 
-    // Handle synthesis - could be object or string
-    let synthesis = data.synthesis || 'Keine Synthese';
-    if (typeof synthesis === 'object') {
-        synthesis = synthesis.synthesis || synthesis.text || JSON.stringify(synthesis);
-    }
+    // Extract synthesis text from various formats
+    const synthesis = extractSynthesisText(data.synthesis);
 
     let md = `# ${title}\n`;
     md += `**Datum:** ${date}\n\n`;
@@ -1000,7 +1046,9 @@ function exportSessionMarkdown() {
     const md = generateSessionMarkdown(session);
     const filename = `${session.titleSlug || 'session'}_${new Date().toISOString().split('T')[0]}.md`;
 
-    const blob = new Blob([md], { type: 'text/markdown' });
+    // Add BOM for Windows UTF-8 compatibility
+    const bom = '\uFEFF';
+    const blob = new Blob([bom + md], { type: 'text/markdown;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -1210,5 +1258,82 @@ document.addEventListener('keydown', (e) => {
         closeArchive();
     }
 });
+
+// ========================================
+// Usage Counter (Frontend Warning)
+// ========================================
+
+/**
+ * Increments the synthesis usage counter and shows warnings
+ * @returns {number} - Current count
+ */
+function incrementUsageCounter() {
+    const today = new Date().toISOString().split('T')[0];
+    const storageKey = 'ki-cockpit-usage';
+
+    let usage = JSON.parse(localStorage.getItem(storageKey) || '{}');
+
+    // Reset wenn neuer Tag
+    if (usage.date !== today) {
+        usage = { date: today, synthesisCount: 0, dedupeCount: 0 };
+    }
+
+    usage.synthesisCount = (usage.synthesisCount || 0) + 1;
+    localStorage.setItem(storageKey, JSON.stringify(usage));
+
+    // Warnung bei hoher Nutzung
+    if (usage.synthesisCount === 40) {
+        alert('⚠️ Hinweis: Du hast heute bereits 40 Synthese-Anfragen gestellt. Bei mehr als 50 könnten API-Limits erreicht werden.');
+    }
+    if (usage.synthesisCount >= 50) {
+        alert('⚠️ Warnung: 50+ Anfragen heute! Um Kosten zu vermeiden, wird auf das günstigere Modell gewechselt.');
+    }
+
+    updateUsageDisplay();
+    return usage.synthesisCount;
+}
+
+/**
+ * Increments the deduplication usage counter
+ * @returns {number} - Current count
+ */
+function incrementDedupeCounter() {
+    const today = new Date().toISOString().split('T')[0];
+    const storageKey = 'ki-cockpit-usage';
+
+    let usage = JSON.parse(localStorage.getItem(storageKey) || '{}');
+
+    if (usage.date !== today) {
+        usage = { date: today, synthesisCount: 0, dedupeCount: 0 };
+    }
+
+    usage.dedupeCount = (usage.dedupeCount || 0) + 1;
+    localStorage.setItem(storageKey, JSON.stringify(usage));
+
+    updateUsageDisplay();
+    return usage.dedupeCount;
+}
+
+/**
+ * Gets current usage statistics
+ * @returns {Object} - Usage stats
+ */
+function getUsageStats() {
+    const storageKey = 'ki-cockpit-usage';
+    return JSON.parse(localStorage.getItem(storageKey) || '{"date":"","synthesisCount":0,"dedupeCount":0}');
+}
+
+/**
+ * Updates the usage display in the UI
+ */
+function updateUsageDisplay() {
+    const stats = getUsageStats();
+    const el = document.getElementById('usageStats');
+    if (el && stats.date === new Date().toISOString().split('T')[0]) {
+        el.innerHTML = `<small>Heute: ${stats.synthesisCount} Synthesen, ${stats.dedupeCount} Deduplizierungen</small>`;
+    } else if (el) {
+        el.innerHTML = '';
+    }
+}
 
 console.log('[app.js] App script loaded');
