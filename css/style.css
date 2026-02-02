@@ -1,5 +1,5 @@
 /* ========================================
-   KI-Cockpit V2 - Stylesheet
+   KI-Cockpit V2.1 - Stylesheet
    ======================================== */
 
 :root {
@@ -927,4 +927,87 @@ footer {
     margin-top: 20px;
     padding-top: 15px;
     border-top: 1px solid #4a4a6a;
+}
+
+/* ========================================
+   Deduplicated Questions V2.1
+   ======================================== */
+
+.loading-text {
+    text-align: center;
+    color: var(--text-secondary);
+    padding: 2rem;
+    font-size: 1.1rem;
+}
+
+.dedupe-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.dedupe-question {
+    background: #2a2a4a;
+    border-radius: 8px;
+    padding: 15px;
+}
+
+.dedupe-question .question-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.dedupe-question .priority {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.dedupe-question .priority.P1 {
+    background: #dc2626;
+    color: white;
+}
+
+.dedupe-question .priority.P2 {
+    background: #f59e0b;
+    color: black;
+}
+
+.dedupe-question .priority.P3 {
+    background: #6b7280;
+    color: white;
+}
+
+.dedupe-question .source-badge {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    color: white;
+}
+
+.dedupe-question .question-text {
+    font-size: 15px;
+    margin-bottom: 10px;
+    line-height: 1.5;
+}
+
+.answer-input {
+    width: 100%;
+    min-height: 60px;
+    background: #1a1a2e;
+    border: 1px solid #4a4a6a;
+    border-radius: 6px;
+    padding: 10px;
+    color: #eee;
+    resize: vertical;
+    font-family: inherit;
+    font-size: 0.95rem;
+}
+
+.answer-input:focus {
+    outline: none;
+    border-color: #74aa9c;
 }

@@ -1,8 +1,8 @@
 /* ========================================
-   KI-Cockpit V2 - Storage & Backend
+   KI-Cockpit V2.1 - Storage & Backend
    ======================================== */
 
-const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbxjjbLv1atYH43KorOK3JxWrpeGzHGAbk64wcAl-sWJtC3qcBVfpigO4iT4XSPOui14/exec';
+const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbxcRzkQ6kxrPUIJH1vJ37r0xf9r0PIdlSTvozdi8UCDe9gzhS8HylRggJTvLYf8aCnj/exec';
 
 /**
  * Saves a session to the backend
@@ -226,6 +226,26 @@ async function getSession(id) {
     return await response.json();
 }
 
+/**
+ * Calls the backend for intelligent question deduplication using Gemini
+ * @param {string} originalProblem - The original problem text
+ * @param {Object} questions - Object with chatgpt, claude, gemini question arrays
+ * @returns {Promise<Object>} - Deduplicated questions
+ */
+async function deduplicateQuestionsAPI(originalProblem, questions) {
+    const response = await fetch(BACKEND_URL, {
+        method: 'POST',
+        redirect: 'follow',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({
+            action: 'deduplicateQuestions',
+            originalProblem: originalProblem,
+            questions: questions
+        })
+    });
+    return await response.json();
+}
+
 // Export for module usage (if needed)
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
@@ -233,6 +253,7 @@ if (typeof module !== 'undefined' && module.exports) {
         loadSessions,
         getSession,
         synthesize,
+        deduplicateQuestionsAPI,
         saveToLocalStorage,
         loadFromLocalStorage,
         deleteFromLocalStorage,

@@ -1,5 +1,5 @@
 /* ========================================
-   KI-Cockpit V2 - Main Application
+   KI-Cockpit V2.1 - Main Application
    ======================================== */
 
 // ========================================
@@ -37,7 +37,7 @@ let session = {
 // ========================================
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('[app.js] KI-Cockpit V2 initialized');
+    console.log('[app.js] KI-Cockpit V2.1 initialized');
     showState(0);
 
     // Template selection handling
@@ -185,59 +185,160 @@ async function copyPrompt(phase, aiName) {
 // ========================================
 
 /**
- * Analyzes and deduplicates questions from all AIs
+ * Analyzes and deduplicates questions from all AIs using Gemini API
  */
-function analyzeQuestions() {
-    console.log('[app.js] Analyzing questions');
+async function analyzeQuestions() {
+    console.log('[app.js] Analyzing questions with AI deduplication');
 
     // Get AI outputs
-    const chatgptQuestions = document.getElementById('chatgpt-questions').value;
-    const claudeQuestions = document.getElementById('claude-questions').value;
-    const geminiQuestions = document.getElementById('gemini-questions').value;
+    const chatgptOutput = document.getElementById('chatgpt-questions').value;
+    const claudeOutput = document.getElementById('claude-questions').value;
+    const geminiOutput = document.getElementById('gemini-questions').value;
+    const problemText = document.getElementById('problem-input').value;
 
     // Check if at least one AI has input
-    if (!chatgptQuestions && !claudeQuestions && !geminiQuestions) {
+    if (!chatgptOutput && !claudeOutput && !geminiOutput) {
         showToast('Bitte füge mindestens eine KI-Antwort ein.', 'error');
         return;
     }
 
     // Save to session
     session.aiQuestions = {
-        chatgpt: chatgptQuestions,
-        claude: claudeQuestions,
-        gemini: geminiQuestions
+        chatgpt: chatgptOutput,
+        claude: claudeOutput,
+        gemini: geminiOutput
     };
 
-    // Extract questions from each AI
-    const allQuestions = [];
+    // Show loading indicator
+    const container = document.getElementById('questions-container');
+    container.innerHTML = '<p class="loading-text">Analysiere Fragen mit KI...</p>';
 
-    if (chatgptQuestions) {
-        allQuestions.push(...extractQuestions(chatgptQuestions, 'chatgpt'));
-    }
-    if (claudeQuestions) {
-        allQuestions.push(...extractQuestions(claudeQuestions, 'claude'));
-    }
-    if (geminiQuestions) {
-        allQuestions.push(...extractQuestions(geminiQuestions, 'gemini'));
-    }
+    // Move to state 3 to show loading
+    showState(3);
 
-    console.log(`[app.js] Total questions extracted: ${allQuestions.length}`);
+    try {
+        // Call Gemini API for intelligent deduplication
+        const result = await deduplicateQuestionsAPI(problemText, {
+            chatgpt: extractQuestionsFromText(chatgptOutput),
+            claude: extractQuestionsFromText(claudeOutput),
+            gemini: extractQuestionsFromText(geminiOutput)
+        });
 
-    if (allQuestions.length === 0) {
-        showToast('Keine Fragen gefunden. Prüfe das Format der KI-Antworten.', 'error');
+        if (result.status === 'success' && result.data) {
+            displayDeduplicatedQuestions(result.data);
+            session.deduplicatedQuestions = result.data;
+            window.deduplicatedQuestions = result.data;
+            showToast(`${result.data.length} deduplizierte Fragen gefunden!`, 'success');
+        } else {
+            // Fallback to local deduplication
+            console.log('[app.js] API deduplication failed, using fallback');
+            const localQuestions = localDeduplicateQuestions(chatgptOutput, claudeOutput, geminiOutput);
+            displayDeduplicatedQuestions(localQuestions);
+            session.deduplicatedQuestions = localQuestions;
+            window.deduplicatedQuestions = localQuestions;
+            showToast(`${localQuestions.length} Fragen gefunden (lokal)`, 'success');
+        }
+    } catch (error) {
+        console.error('[app.js] Deduplication error:', error);
+        // Fallback to local deduplication on error
+        const localQuestions = localDeduplicateQuestions(chatgptOutput, claudeOutput, geminiOutput);
+        displayDeduplicatedQuestions(localQuestions);
+        session.deduplicatedQuestions = localQuestions;
+        window.deduplicatedQuestions = localQuestions;
+        showToast('Lokale Analyse verwendet', 'success');
+    }
+}
+
+/**
+ * Extracts questions from AI output text in the new format
+ * @param {string} text - AI output text
+ * @returns {Array} - Array of question strings
+ */
+function extractQuestionsFromText(text) {
+    if (!text) return [];
+    const questions = [];
+    const lines = text.split('\n');
+    for (const line of lines) {
+        // Match format: 1. (P1) (TAG:xxx) Question text
+        const match = line.match(/^\d+\.\s*\(P[123]\)\s*\(TAG:\w+\)\s*(.+)/);
+        if (match) {
+            questions.push(match[1].trim());
+        }
+    }
+    return questions;
+}
+
+/**
+ * Displays deduplicated questions with the new format
+ * @param {Array} questions - Array of question objects
+ */
+function displayDeduplicatedQuestions(questions) {
+    const container = document.getElementById('questions-container');
+
+    if (!questions || questions.length === 0) {
+        container.innerHTML = '<p>Keine Fragen gefunden.</p>';
         return;
     }
 
-    // Deduplicate questions
-    const deduplicated = deduplicateQuestions(allQuestions);
-    session.deduplicatedQuestions = deduplicated;
+    let html = '<div class="dedupe-list">';
+    questions.forEach((q, index) => {
+        const sourceBadges = (q.sources || []).map(s => {
+            const colors = { 'ChatGPT': '#74aa9c', 'Claude': '#d97706', 'Gemini': '#4285f4' };
+            return `<span class="source-badge" style="background:${colors[s] || '#666'}">${s}</span>`;
+        }).join('');
 
-    // Render questions
-    renderQuestions(deduplicated);
+        html += `
+            <div class="dedupe-question">
+                <div class="question-header">
+                    <span class="priority ${q.priority || 'P2'}">${q.priority || 'P2'}</span>
+                    ${sourceBadges}
+                </div>
+                <div class="question-text">${q.question || q.text}</div>
+                <textarea
+                    class="answer-input"
+                    id="answer-${index}"
+                    placeholder="Deine Antwort..."
+                    onchange="updateAnswer(${index}, this.value)"
+                >${q.answer || ''}</textarea>
+            </div>
+        `;
+    });
+    html += '</div>';
 
-    // Move to next state
-    showState(3);
-    showToast(`${deduplicated.length} einzigartige Fragen gefunden!`, 'success');
+    container.innerHTML = html;
+}
+
+/**
+ * Fallback for local deduplication when API fails
+ * @param {string} chatgpt - ChatGPT output
+ * @param {string} claude - Claude output
+ * @param {string} gemini - Gemini output
+ * @returns {Array} - Array of question objects
+ */
+function localDeduplicateQuestions(chatgpt, claude, gemini) {
+    const allQuestions = [];
+    const seen = new Set();
+
+    const addQuestions = (text, source) => {
+        const questions = extractQuestionsFromText(text);
+        questions.forEach(q => {
+            const normalized = q.toLowerCase().trim();
+            if (!seen.has(normalized)) {
+                seen.add(normalized);
+                allQuestions.push({
+                    question: q,
+                    priority: 'P2',
+                    sources: [source]
+                });
+            }
+        });
+    };
+
+    addQuestions(chatgpt, 'ChatGPT');
+    addQuestions(claude, 'Claude');
+    addQuestions(gemini, 'Gemini');
+
+    return allQuestions;
 }
 
 /**
