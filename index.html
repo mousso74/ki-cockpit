@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KI-Cockpit V1</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header>
+        <h1>KI-Cockpit V1</h1>
+        <div class="state-indicator">
+            <span class="state-dot" data-state="0"></span>
+            <span class="state-dot" data-state="1"></span>
+            <span class="state-dot" data-state="2"></span>
+            <span class="state-dot" data-state="3"></span>
+            <span class="state-dot" data-state="4"></span>
+            <span class="state-dot" data-state="5"></span>
+        </div>
+    </header>
+
+    <main>
+        <!-- State 0: Problem-Eingabe -->
+        <section id="state-0" class="state-section active">
+            <div class="card">
+                <h2>Problem beschreiben</h2>
+                <p class="description">Beschreibe dein Problem oder deine Aufgabe so detailliert wie möglich.</p>
+                <textarea id="problem-input" placeholder="Beschreibe hier dein Problem..."></textarea>
+            </div>
+            <div class="card">
+                <h2>Template auswählen</h2>
+                <div class="template-options">
+                    <label class="template-option selected">
+                        <input type="radio" name="template" value="questions" checked>
+                        <span class="template-card">
+                            <strong>Fragen-Analyse</strong>
+                            <small>KIs stellen klärende Fragen</small>
+                        </span>
+                    </label>
+                </div>
+            </div>
+            <div class="actions">
+                <button class="btn btn-primary" onclick="generatePrompts()">Prompts generieren →</button>
+            </div>
+        </section>
+
+        <!-- State 1: Phase-1 Prompts -->
+        <section id="state-1" class="state-section">
+            <div class="card">
+                <h2>Phase 1: Fragen-Prompts</h2>
+                <p class="description">Kopiere den Prompt und füge ihn in die jeweilige KI ein.</p>
+                <div class="prompt-display">
+                    <pre id="phase1-prompt"></pre>
+                </div>
+            </div>
+            <div class="copy-buttons">
+                <button class="btn btn-chatgpt" onclick="copyPrompt('phase1', 'ChatGPT')">
+                    <span class="btn-icon">📋</span> ChatGPT
+                </button>
+                <button class="btn btn-claude" onclick="copyPrompt('phase1', 'Claude')">
+                    <span class="btn-icon">📋</span> Claude
+                </button>
+                <button class="btn btn-gemini" onclick="copyPrompt('phase1', 'Gemini')">
+                    <span class="btn-icon">📋</span> Gemini
+                </button>
+            </div>
+            <div class="actions">
+                <button class="btn btn-secondary" onclick="prevState()">← Zurück</button>
+                <button class="btn btn-primary" onclick="nextState()">Weiter →</button>
+            </div>
+        </section>
+
+        <!-- State 2: Fragen-Outputs einfügen -->
+        <section id="state-2" class="state-section">
+            <div class="card">
+                <h2>KI-Antworten einfügen</h2>
+                <p class="description">Füge die Fragen-Outputs der drei KIs hier ein.</p>
+                <div class="ai-inputs">
+                    <div class="ai-input-group chatgpt">
+                        <label>ChatGPT Antwort</label>
+                        <textarea id="chatgpt-questions" placeholder="ChatGPT Fragen hier einfügen..."></textarea>
+                    </div>
+                    <div class="ai-input-group claude">
+                        <label>Claude Antwort</label>
+                        <textarea id="claude-questions" placeholder="Claude Fragen hier einfügen..."></textarea>
+                    </div>
+                    <div class="ai-input-group gemini">
+                        <label>Gemini Antwort</label>
+                        <textarea id="gemini-questions" placeholder="Gemini Fragen hier einfügen..."></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="actions">
+                <button class="btn btn-secondary" onclick="prevState()">← Zurück</button>
+                <button class="btn btn-primary" onclick="analyzeQuestions()">Fragen analysieren →</button>
+            </div>
+        </section>
+
+        <!-- State 3: Deduplizierte Fragen + Antworten -->
+        <section id="state-3" class="state-section">
+            <div class="card">
+                <h2>Fragen beantworten</h2>
+                <p class="description">Beantworte die zusammengefassten Fragen der KIs.</p>
+                <div id="questions-container">
+                    <!-- Dynamisch generiert -->
+                </div>
+            </div>
+            <div class="actions">
+                <button class="btn btn-secondary" onclick="prevState()">← Zurück</button>
+                <button class="btn btn-primary" onclick="generateSolvePrompts()">Solve-Prompts generieren →</button>
+            </div>
+        </section>
+
+        <!-- State 4: Phase-2 Prompts (Solve) -->
+        <section id="state-4" class="state-section">
+            <div class="card">
+                <h2>Phase 2: Lösungs-Prompts</h2>
+                <p class="description">Kopiere den Prompt und füge ihn in die jeweilige KI ein.</p>
+                <div class="prompt-display">
+                    <pre id="phase2-prompt"></pre>
+                </div>
+            </div>
+            <div class="copy-buttons">
+                <button class="btn btn-chatgpt" onclick="copyPrompt('phase2', 'ChatGPT')">
+                    <span class="btn-icon">📋</span> ChatGPT
+                </button>
+                <button class="btn btn-claude" onclick="copyPrompt('phase2', 'Claude')">
+                    <span class="btn-icon">📋</span> Claude
+                </button>
+                <button class="btn btn-gemini" onclick="copyPrompt('phase2', 'Gemini')">
+                    <span class="btn-icon">📋</span> Gemini
+                </button>
+            </div>
+            <div class="actions">
+                <button class="btn btn-secondary" onclick="prevState()">← Zurück</button>
+                <button class="btn btn-primary" onclick="nextState()">Weiter →</button>
+            </div>
+        </section>
+
+        <!-- State 5: Lösungen + Synthese -->
+        <section id="state-5" class="state-section">
+            <div class="card">
+                <h2>Lösungen einfügen</h2>
+                <p class="description">Füge die Lösungen der drei KIs hier ein.</p>
+                <div class="ai-inputs">
+                    <div class="ai-input-group chatgpt">
+                        <label>ChatGPT Lösung</label>
+                        <textarea id="chatgpt-solution" placeholder="ChatGPT Lösung hier einfügen..."></textarea>
+                    </div>
+                    <div class="ai-input-group claude">
+                        <label>Claude Lösung</label>
+                        <textarea id="claude-solution" placeholder="Claude Lösung hier einfügen..."></textarea>
+                    </div>
+                    <div class="ai-input-group gemini">
+                        <label>Gemini Lösung</label>
+                        <textarea id="gemini-solution" placeholder="Gemini Lösung hier einfügen..."></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <h2>Synthese</h2>
+                <button class="btn btn-primary btn-large" onclick="startSynthesis()" id="synthesis-btn">
+                    🔮 Synthese starten
+                </button>
+                <div id="synthesis-result" class="synthesis-result hidden">
+                    <h3>Synthesierte Lösung</h3>
+                    <div id="synthesis-content"></div>
+                </div>
+            </div>
+            <div class="actions">
+                <button class="btn btn-secondary" onclick="prevState()">← Zurück</button>
+                <button class="btn btn-primary" onclick="resetSession()">Neue Session</button>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <button class="btn btn-footer" onclick="saveCurrentSession()">💾 Session speichern</button>
+        <button class="btn btn-footer" onclick="openArchive()">📂 Archiv laden</button>
+    </footer>
+
+    <!-- Archive Modal -->
+    <div id="archive-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Gespeicherte Sessions</h2>
+                <button class="modal-close" onclick="closeArchive()">×</button>
+            </div>
+            <div class="modal-body" id="archive-list">
+                <!-- Dynamisch generiert -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast hidden"></div>
+
+    <script src="js/prompts.js"></script>
+    <script src="js/parser.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

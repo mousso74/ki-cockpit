@@ -1,0 +1,733 @@
+/* ========================================
+   KI-Cockpit V1 - Stylesheet
+   ======================================== */
+
+:root {
+    --bg-primary: #1a1a2e;
+    --bg-secondary: #16213e;
+    --bg-card: #0f3460;
+    --text-primary: #eeeeee;
+    --text-secondary: #a0a0a0;
+    --accent: #e94560;
+    --chatgpt: #74aa9c;
+    --claude: #d97706;
+    --gemini: #4285f4;
+    --success: #10b981;
+    --border-radius: 12px;
+    --transition: all 0.3s ease;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ========================================
+   Header
+   ======================================== */
+
+header {
+    background: var(--bg-secondary);
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+header h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    background: linear-gradient(135deg, var(--chatgpt), var(--claude), var(--gemini));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.state-indicator {
+    display: flex;
+    gap: 8px;
+}
+
+.state-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    transition: var(--transition);
+}
+
+.state-dot.active {
+    background: var(--accent);
+    box-shadow: 0 0 10px var(--accent);
+}
+
+.state-dot.completed {
+    background: var(--success);
+}
+
+/* ========================================
+   Main Content
+   ======================================== */
+
+main {
+    flex: 1;
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.state-section {
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+
+.state-section.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ========================================
+   Cards
+   ======================================== */
+
+.card {
+    background: var(--bg-card);
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.card h2 {
+    font-size: 1.25rem;
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+}
+
+.card .description {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+/* ========================================
+   Form Elements
+   ======================================== */
+
+textarea {
+    width: 100%;
+    min-height: 150px;
+    padding: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 1rem;
+    resize: vertical;
+    transition: var(--transition);
+}
+
+textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(233, 69, 96, 0.2);
+}
+
+textarea::placeholder {
+    color: var(--text-secondary);
+}
+
+/* ========================================
+   Template Options
+   ======================================== */
+
+.template-options {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.template-option {
+    cursor: pointer;
+}
+
+.template-option input {
+    display: none;
+}
+
+.template-card {
+    display: block;
+    padding: 1rem 1.5rem;
+    background: var(--bg-secondary);
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    transition: var(--transition);
+}
+
+.template-card strong {
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.template-card small {
+    color: var(--text-secondary);
+}
+
+.template-option.selected .template-card,
+.template-option input:checked + .template-card {
+    border-color: var(--accent);
+    background: rgba(233, 69, 96, 0.1);
+}
+
+/* ========================================
+   Buttons
+   ======================================== */
+
+.btn {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+}
+
+.btn:active {
+    transform: translateY(0);
+}
+
+.btn-primary {
+    background: var(--accent);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #d13652;
+    box-shadow: 0 4px 15px rgba(233, 69, 96, 0.4);
+}
+
+.btn-secondary {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+}
+
+.btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.btn-large {
+    padding: 1rem 2rem;
+    font-size: 1.1rem;
+    width: 100%;
+    justify-content: center;
+}
+
+.btn-footer {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.btn-footer:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-primary);
+}
+
+/* AI-specific buttons */
+.btn-chatgpt {
+    background: var(--chatgpt);
+    color: white;
+}
+
+.btn-chatgpt:hover {
+    box-shadow: 0 4px 15px rgba(116, 170, 156, 0.4);
+}
+
+.btn-claude {
+    background: var(--claude);
+    color: white;
+}
+
+.btn-claude:hover {
+    box-shadow: 0 4px 15px rgba(217, 119, 6, 0.4);
+}
+
+.btn-gemini {
+    background: var(--gemini);
+    color: white;
+}
+
+.btn-gemini:hover {
+    box-shadow: 0 4px 15px rgba(66, 133, 244, 0.4);
+}
+
+.btn.copied {
+    background: var(--success) !important;
+}
+
+.btn.copied::after {
+    content: ' ✓';
+}
+
+/* ========================================
+   Copy Buttons Layout
+   ======================================== */
+
+.copy-buttons {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.copy-buttons .btn {
+    flex: 1;
+    min-width: 150px;
+    justify-content: center;
+}
+
+/* ========================================
+   Actions
+   ======================================== */
+
+.actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+/* ========================================
+   Prompt Display
+   ======================================== */
+
+.prompt-display {
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    padding: 1rem;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.prompt-display pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+/* ========================================
+   AI Input Groups
+   ======================================== */
+
+.ai-inputs {
+    display: grid;
+    gap: 1rem;
+}
+
+@media (min-width: 768px) {
+    .ai-inputs {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+.ai-input-group label {
+    display: block;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    padding-left: 0.5rem;
+    border-left: 3px solid;
+}
+
+.ai-input-group.chatgpt label {
+    border-color: var(--chatgpt);
+    color: var(--chatgpt);
+}
+
+.ai-input-group.claude label {
+    border-color: var(--claude);
+    color: var(--claude);
+}
+
+.ai-input-group.gemini label {
+    border-color: var(--gemini);
+    color: var(--gemini);
+}
+
+.ai-input-group textarea {
+    min-height: 200px;
+}
+
+/* ========================================
+   Questions Container
+   ======================================== */
+
+#questions-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.question-item {
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    padding: 1rem;
+    border-left: 3px solid var(--accent);
+}
+
+.question-item .question-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.75rem;
+    gap: 1rem;
+}
+
+.question-item .question-text {
+    font-weight: 500;
+    flex: 1;
+}
+
+.question-item .question-meta {
+    display: flex;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.question-item .tag {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.question-item .priority {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+}
+
+.priority.p1 { background: #ef4444; color: white; }
+.priority.p2 { background: #f59e0b; color: white; }
+.priority.p3 { background: #6b7280; color: white; }
+
+.question-item .sources {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.75rem;
+}
+
+.question-item .source-badge {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 4px;
+}
+
+.source-badge.chatgpt { background: var(--chatgpt); }
+.source-badge.claude { background: var(--claude); }
+.source-badge.gemini { background: var(--gemini); }
+
+.question-item textarea {
+    min-height: 80px;
+}
+
+/* ========================================
+   Synthesis Result
+   ======================================== */
+
+.synthesis-result {
+    margin-top: 1.5rem;
+    padding: 1.5rem;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    border: 1px solid var(--success);
+}
+
+.synthesis-result h3 {
+    color: var(--success);
+    margin-bottom: 1rem;
+}
+
+#synthesis-content {
+    line-height: 1.6;
+    white-space: pre-wrap;
+}
+
+/* ========================================
+   Footer
+   ======================================== */
+
+footer {
+    background: var(--bg-secondary);
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* ========================================
+   Modal
+   ======================================== */
+
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 2rem;
+}
+
+.modal.hidden {
+    display: none;
+}
+
+.modal-content {
+    background: var(--bg-card);
+    border-radius: var(--border-radius);
+    max-width: 600px;
+    width: 100%;
+    max-height: 80vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.modal-header h2 {
+    font-size: 1.25rem;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    line-height: 1;
+}
+
+.modal-close:hover {
+    color: var(--accent);
+}
+
+.modal-body {
+    padding: 1.5rem;
+    overflow-y: auto;
+}
+
+.session-item {
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    margin-bottom: 0.75rem;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.session-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.session-item .session-date {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.session-item .session-preview {
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ========================================
+   Toast
+   ======================================== */
+
+.toast {
+    position: fixed;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    padding: 1rem 2rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    z-index: 1001;
+    animation: toastIn 0.3s ease;
+}
+
+.toast.hidden {
+    display: none;
+}
+
+.toast.success {
+    border-left: 4px solid var(--success);
+}
+
+.toast.error {
+    border-left: 4px solid var(--accent);
+}
+
+@keyframes toastIn {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+/* ========================================
+   Utility Classes
+   ======================================== */
+
+.hidden {
+    display: none !important;
+}
+
+/* ========================================
+   Loading State
+   ======================================== */
+
+.loading {
+    position: relative;
+    pointer-events: none;
+}
+
+.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid transparent;
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ========================================
+   Responsive
+   ======================================== */
+
+@media (max-width: 768px) {
+    header {
+        padding: 1rem;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    main {
+        padding: 1rem;
+    }
+
+    .card {
+        padding: 1rem;
+    }
+
+    .copy-buttons {
+        flex-direction: column;
+    }
+
+    .copy-buttons .btn {
+        min-width: 100%;
+    }
+
+    .actions {
+        flex-direction: column;
+    }
+
+    .actions .btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    footer {
+        flex-direction: column;
+        padding: 1rem;
+    }
+
+    footer .btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* ========================================
+   Scrollbar Styling
+   ======================================== */
+
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
