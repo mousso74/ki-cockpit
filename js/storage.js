@@ -15,9 +15,9 @@ async function saveSession(sessionData) {
     try {
         const response = await fetch(BACKEND_URL, {
             method: 'POST',
-            mode: 'no-cors', // Google Apps Script requires this
+            redirect: 'follow',
             headers: {
-                'Content-Type': 'application/json',
+                'Content-Type': 'text/plain',
             },
             body: JSON.stringify({
                 action: 'saveSession',
@@ -49,6 +49,7 @@ async function loadSessions() {
     try {
         const response = await fetch(`${BACKEND_URL}?action=listSessions`, {
             method: 'GET',
+            redirect: 'follow',
         });
 
         if (response.ok) {
@@ -75,11 +76,11 @@ async function synthesize(problem, responses) {
     console.log('[storage.js] Starting synthesis');
 
     try {
-        // For synthesis, we need CORS
         const response = await fetch(BACKEND_URL, {
             method: 'POST',
+            redirect: 'follow',
             headers: {
-                'Content-Type': 'application/json',
+                'Content-Type': 'text/plain',
             },
             body: JSON.stringify({
                 action: 'synthesize',
