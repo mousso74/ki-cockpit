@@ -553,19 +553,94 @@ function displaySynthesis(result) {
 }
 
 /**
- * Formats markdown text to HTML
- * @param {string} text - Markdown text
+ * Formats markdown text to HTML (robust version)
+ * @param {*} input - Markdown text or object
  * @returns {string} - HTML string
  */
-function formatMarkdown(text) {
-    return text
-        .replace(/## (.*?)(\n|$)/g, '<h3>$1</h3>')
-        .replace(/### (.*?)(\n|$)/g, '<h4>$1</h4>')
-        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\n- /g, '<br>• ')
-        .replace(/\n(\d+)\. /g, '<br>$1. ')
-        .replace(/\n\n/g, '</p><p>')
-        .replace(/\n/g, '<br>');
+function formatMarkdown(input) {
+    let text = '';
+    if (typeof input === 'string') {
+        text = input;
+    } else if (input == null) {
+        text = '';
+    } else if (typeof input === 'number' || typeof input === 'boolean') {
+        text = String(input);
+    } else if (typeof input === 'object') {
+        if (typeof input.synthesis === 'string') text = input.synthesis;
+        else if (typeof input.text === 'string') text = input.text;
+        else {
+            try { text = JSON.stringify(input, null, 2); } catch { text = String(input); }
+        }
+    } else {
+        text = String(input);
+    }
+
+    text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+    text = text
+        .replace(/^###\s+(.+)$/gm, '<h4>$1</h4>')
+        .replace(/^##\s+(.+)$/gm, '<h3>$1</h3>')
+        .replace(/^#\s+(.+)$/gm, '<h2>$1</h2>');
+
+    text = text
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>');
+
+    text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+    text = text
+        .split(/\n{2,}/)
+        .map(para => `<p>${para.replace(/\n/g, '<br>')}</p>`)
+        .join('');
+
+    return text;
+}
+
+/**
+ * Creates a URL-safe slug from a title
+ * @param {string} title - The title
+ * @returns {string} - URL-safe slug
+ */
+function makeTitleSlug(title) {
+    const t = (title || '').trim() || 'Session';
+    const map = { ä: 'ae', ö: 'oe', ü: 'ue', ß: 'ss' };
+
+    const slug = t
+        .toLowerCase()
+        .replace(/[äöüß]/g, m => map[m] || m)
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')
+        .substring(0, 40);
+
+    return slug || 'session';
+}
+
+/**
+ * Converts markdown to plain text
+ * @param {*} md - Markdown string or other input
+ * @returns {string} - Plain text
+ */
+function markdownToPlainText(md) {
+    if (typeof md !== 'string') md = md == null ? '' : String(md);
+
+    let s = md.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+    // Remove headers
+    s = s.replace(/^\s{0,3}#{1,6}\s+/gm, '');
+
+    // Remove bold, italic, code
+    s = s.replace(/\*\*(.+?)\*\*/g, '$1');
+    s = s.replace(/\*(.+?)\*/g, '$1');
+    s = s.replace(/`([^`]+)`/g, '$1');
+
+    // Normalize lists
+    s = s.replace(/^\s*[-•]\s+/gm, '- ');
+    s = s.replace(/^\s*(\d+)\.\s+/gm, '$1) ');
+
+    // Clean up whitespace
+    s = s.replace(/\n{3,}/g, '\n\n').trim();
+
+    return s;
 }
 
 /**
@@ -605,14 +680,26 @@ function copySynthesis(format) {
 }
 
 /**
- * Opens email client with synthesis
+ * Opens email client with synthesis as plain text
  */
 function openAsEmail() {
-    const title = document.getElementById('sessionTitle')?.value || 'KI-Cockpit Synthese';
-    const text = window.currentSynthesis || '';
-    const subject = encodeURIComponent(`KI-Cockpit: ${title}`);
-    const body = encodeURIComponent(text.substring(0, 8000));
-    window.open(`mailto:?subject=${subject}&body=${body}`);
+    const title = document.getElementById('sessionTitle')?.value?.trim() || 'KI-Cockpit Session';
+
+    const date = new Date();
+    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+    const subject = `KI-Cockpit – ${title} – ${dateStr}`;
+
+    const md = window.currentSynthesis || '';
+    const plainText = markdownToPlainText(md);
+
+    const MAX_MAILTO_BODY = 8000;
+    const safeBody = plainText.length > MAX_MAILTO_BODY
+        ? plainText.substring(0, MAX_MAILTO_BODY) + '\n\n(Text gekürzt - bitte im Cockpit kopieren)'
+        : plainText;
+
+    const mailto = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(safeBody)}`;
+    window.location.href = mailto;
 }
 
 // ========================================
@@ -625,16 +712,13 @@ function openAsEmail() {
 async function saveCurrentSession() {
     console.log('[app.js] Saving current session');
 
-    // Get title and create slug
-    const title = document.getElementById('sessionTitle')?.value || 'Unbenannte Session';
-    const titleSlug = title.toLowerCase()
-        .replace(/[äöüß]/g, m => ({ä:'ae',ö:'oe',ü:'ue',ß:'ss'})[m])
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-|-$/g, '')
-        .substring(0, 40) || 'session';
+    // Get title and create slug using helper function
+    const titleFromUi = document.getElementById('sessionTitle')?.value || 'Session';
+    const titleSlug = makeTitleSlug(titleFromUi);
 
-    // Also store name for display
-    session.name = title;
+    // Store name and titleSlug BEFORE saving
+    session.name = titleFromUi;
+    session.titleSlug = titleSlug;
 
     // Collect all answers from the question textareas
     const answers = [];
@@ -698,7 +782,7 @@ async function loadArchive() {
             let html = '<div class="archive-list"><h3>Gespeicherte Sessions</h3>';
             sessions.data.forEach(session => {
                 html += `<div class="archive-item" onclick="viewSession('${session.id}')">
-                    <span class="archive-name">${session.name || session.titleSlug || 'Unbenannt'}</span>
+                    <span class="archive-name">${session.displayTitle || session.name || session.titleSlug || 'Unbenannt'}</span>
                     <span class="archive-date">${new Date(session.date || session.createdAt).toLocaleDateString('de-DE')}</span>
                 </div>`;
             });
@@ -710,7 +794,7 @@ async function loadArchive() {
             let html = '<div class="archive-list"><h3>Gespeicherte Sessions</h3>';
             sessions.forEach(session => {
                 html += `<div class="archive-item" onclick="viewSession('${session.id}')">
-                    <span class="archive-name">${session.name || session.titleSlug || 'Unbenannt'}</span>
+                    <span class="archive-name">${session.displayTitle || session.name || session.titleSlug || 'Unbenannt'}</span>
                     <span class="archive-date">${new Date(session.date || session.createdAt).toLocaleDateString('de-DE')}</span>
                 </div>`;
             });
