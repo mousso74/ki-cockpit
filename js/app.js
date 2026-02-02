@@ -397,28 +397,41 @@ function updateAnswer(index, value) {
 function generateSolvePrompts() {
     console.log('[app.js] Generating Solve prompts');
 
+    // Use window.deduplicatedQuestions or session.deduplicatedQuestions
+    const questions = window.deduplicatedQuestions || session.deduplicatedQuestions || [];
+
     // Collect answers from textareas
-    session.deduplicatedQuestions.forEach((q, index) => {
+    const answers = [];
+    questions.forEach((q, index) => {
         const answerEl = document.getElementById(`answer-${index}`);
-        if (answerEl) {
-            q.answer = answerEl.value;
+        const answer = answerEl?.value || '';
+        answers.push(answer);
+        // Also update the question object
+        if (typeof q === 'object') {
+            q.answer = answer;
         }
     });
 
     // Check if at least some questions are answered
-    const answeredCount = session.deduplicatedQuestions.filter(q => q.answer && q.answer.trim()).length;
+    const answeredCount = answers.filter(a => a && a.trim()).length;
     if (answeredCount === 0) {
         showToast('Bitte beantworte mindestens eine Frage.', 'error');
         return;
     }
 
-    // Generate prompt
-    const questionsAndAnswers = session.deduplicatedQuestions.map(q => ({
-        question: q.text,
-        answer: q.answer
-    }));
+    // Store answers in session
+    session.answers = answers;
+    session.deduplicatedQuestions = questions;
 
-    const prompt = generateSolvePrompt(session.problem, questionsAndAnswers);
+    // Generate QA block for the prompt
+    let qaBlock = '';
+    questions.forEach((q, i) => {
+        const questionText = typeof q === 'string' ? q : (q.question || q.text || 'Frage nicht verfügbar');
+        const answer = answers[i] || '(nicht beantwortet)';
+        qaBlock += `F${i+1}: ${questionText}\nA${i+1}: ${answer}\n\n`;
+    });
+
+    const prompt = generateSolvePrompt(session.problem, qaBlock);
     session.phase2Prompt = prompt;
 
     // Display prompt (show user part only, system prompt is too long)
@@ -561,8 +574,31 @@ function formatMarkdown(text) {
  */
 function copySynthesis(format) {
     const text = window.currentSynthesis || '';
-    navigator.clipboard.writeText(text).then(() => {
-        showToast('Kopiert!', 'success');
+
+    let copyText = text;
+
+    if (format === 'text') {
+        // Entferne Markdown-Formatierung für reinen Text
+        copyText = text
+            .replace(/\*\*(.*?)\*\*/g, '$1')
+            .replace(/\*(.*?)\*/g, '$1')
+            .replace(/#{1,6}\s?(.*?)(\n|$)/g, '$1$2')
+            .replace(/\[(.*?)\]\(.*?\)/g, '$1')
+            .replace(/`(.*?)`/g, '$1')
+            .replace(/^\s*[-*+]\s/gm, '• ')
+            .replace(/\[SOLUTION\]|\[\/SOLUTION\]/g, '')
+            .replace(/\[ACTION_PLAN\]|\[\/ACTION_PLAN\]/g, '')
+            .replace(/\[RISKS\]|\[\/RISKS\]/g, '')
+            .replace(/\[STATUS\]|\[\/STATUS\]/g, '')
+            .replace(/\[ASSUMPTIONS\]|\[\/ASSUMPTIONS\]/g, '')
+            .replace(/\[FOLLOWUP_QUESTIONS\]|\[\/FOLLOWUP_QUESTIONS\]/g, '')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
+    }
+
+    navigator.clipboard.writeText(copyText).then(() => {
+        const msg = format === 'text' ? 'Text kopiert (ohne Formatierung)!' : 'Markdown kopiert!';
+        showToast(msg, 'success');
     }).catch(() => {
         showToast('Kopieren fehlgeschlagen', 'error');
     });
@@ -592,9 +628,13 @@ async function saveCurrentSession() {
     // Get title and create slug
     const title = document.getElementById('sessionTitle')?.value || 'Unbenannte Session';
     const titleSlug = title.toLowerCase()
-        .replace(/[^a-z0-9äöüß]+/g, '-')
+        .replace(/[äöüß]/g, m => ({ä:'ae',ö:'oe',ü:'ue',ß:'ss'})[m])
+        .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-|-$/g, '')
-        .substring(0, 40);
+        .substring(0, 40) || 'session';
+
+    // Also store name for display
+    session.name = title;
 
     // Collect all answers from the question textareas
     const answers = [];
@@ -704,22 +744,29 @@ async function viewSession(id) {
 
 /**
  * Displays session details in the modal
- * @param {Object} session - Session data
+ * @param {Object} session - Session data (may be nested in .data)
  */
 function displaySessionDetails(session) {
     const modal = document.getElementById('archiveModal');
 
-    const title = session.title || session.titleSlug || 'Session';
-    const problem = session.problem || 'Kein Problem gespeichert';
-    const synthesis = session.synthesis || 'Keine Synthese vorhanden';
+    // Hole die Daten - sie könnten in session.data oder direkt in session sein
+    const data = session.data || session;
+
+    const title = data.name || data.title || data.titleSlug || 'Session';
+    const problem = data.problem || 'Kein Problem gespeichert';
+    const synthesis = data.synthesis || 'Keine Synthese vorhanden';
 
     // Deduplizierte Fragen
     let questionsHtml = '';
-    if (session.deduplicatedQuestions && session.deduplicatedQuestions.length > 0) {
-        questionsHtml = session.deduplicatedQuestions.map((q, i) => {
-            const answer = session.answers ? session.answers[i] || 'Keine Antwort' : 'Keine Antwort';
+    const questions = data.deduplicatedQuestions || [];
+    const answers = data.answers || [];
+
+    if (questions.length > 0) {
+        questionsHtml = questions.map((q, i) => {
+            const questionText = typeof q === 'string' ? q : (q.question || 'Frage nicht verfügbar');
+            const answer = answers[i] || 'Keine Antwort';
             return `<div class="qa-item">
-                <div class="question"><strong>F${i+1}:</strong> ${q.question || q}</div>
+                <div class="question"><strong>F${i+1}:</strong> ${questionText}</div>
                 <div class="answer"><strong>A:</strong> ${answer}</div>
             </div>`;
         }).join('');
@@ -728,15 +775,16 @@ function displaySessionDetails(session) {
     }
 
     // KI-Lösungen
-    const chatgptSolution = session.phase2Outputs?.chatgpt || 'Nicht vorhanden';
-    const claudeSolution = session.phase2Outputs?.claude || 'Nicht vorhanden';
-    const geminiSolution = session.phase2Outputs?.gemini || 'Nicht vorhanden';
+    const phase2 = data.phase2Outputs || {};
+    const chatgptSolution = phase2.chatgpt || 'Nicht vorhanden';
+    const claudeSolution = phase2.claude || 'Nicht vorhanden';
+    const geminiSolution = phase2.gemini || 'Nicht vorhanden';
 
     let html = `
         <div class="session-detail">
             <div class="session-header">
                 <h2>${title}</h2>
-                <span class="session-date">${new Date(session.createdAt || Date.now()).toLocaleDateString('de-DE')}</span>
+                <span class="session-date">${new Date(data.createdAt || Date.now()).toLocaleDateString('de-DE')}</span>
             </div>
 
             <div class="session-section">
@@ -767,7 +815,7 @@ function displaySessionDetails(session) {
             </div>
 
             <div class="session-actions">
-                <button onclick="exportSessionMarkdown()" class="btn-small btn-export">📥 Als Markdown exportieren</button>
+                <button onclick="exportSessionMarkdown()" class="btn-small btn-primary">📥 Als Markdown exportieren</button>
                 <button onclick="copySessionMarkdown()" class="btn-small">📋 Markdown kopieren</button>
                 <button onclick="loadArchive()" class="btn-small">← Zurück zur Liste</button>
                 <button onclick="closeModal()" class="btn-small">Schließen</button>
@@ -776,7 +824,7 @@ function displaySessionDetails(session) {
     `;
 
     modal.innerHTML = html;
-    window.currentSessionData = session;
+    window.currentSessionData = data;
 }
 
 /**
@@ -792,14 +840,16 @@ function showSolutionTab(ki) {
 
 /**
  * Generates markdown from session data
- * @param {Object} session - Session data
+ * @param {Object} session - Session data (may be nested in .data)
  * @returns {string} - Markdown string
  */
 function generateSessionMarkdown(session) {
-    const title = session.title || session.titleSlug || 'Session';
-    const date = new Date(session.createdAt || Date.now()).toLocaleDateString('de-DE');
-    const problem = session.problem || 'Kein Problem';
-    const synthesis = session.synthesis || 'Keine Synthese';
+    const data = session.data || session;
+
+    const title = data.name || data.title || data.titleSlug || 'Session';
+    const date = new Date(data.createdAt || Date.now()).toLocaleDateString('de-DE');
+    const problem = data.problem || 'Kein Problem';
+    const synthesis = data.synthesis || 'Keine Synthese';
 
     let md = `# ${title}\n`;
     md += `**Datum:** ${date}\n\n`;
@@ -808,19 +858,24 @@ function generateSessionMarkdown(session) {
     md += `## 📋 Problemstellung\n\n${problem}\n\n`;
 
     md += `## ❓ Fragen & Antworten\n\n`;
-    if (session.deduplicatedQuestions && session.deduplicatedQuestions.length > 0) {
-        session.deduplicatedQuestions.forEach((q, i) => {
-            const answer = session.answers ? session.answers[i] || '-' : '-';
+    const questions = data.deduplicatedQuestions || [];
+    const answers = data.answers || [];
+
+    if (questions.length > 0) {
+        questions.forEach((q, i) => {
+            const questionText = typeof q === 'string' ? q : (q.question || 'Frage');
+            const answer = answers[i] || '-';
             md += `### Frage ${i+1}\n`;
-            md += `**${q.question || q}**\n\n`;
+            md += `**${questionText}**\n\n`;
             md += `*Antwort:* ${answer}\n\n`;
         });
     }
 
+    const phase2 = data.phase2Outputs || {};
     md += `## 🤖 KI-Lösungen\n\n`;
-    md += `### ChatGPT\n${session.phase2Outputs?.chatgpt || 'Nicht vorhanden'}\n\n`;
-    md += `### Claude\n${session.phase2Outputs?.claude || 'Nicht vorhanden'}\n\n`;
-    md += `### Gemini\n${session.phase2Outputs?.gemini || 'Nicht vorhanden'}\n\n`;
+    md += `### ChatGPT\n${phase2.chatgpt || 'Nicht vorhanden'}\n\n`;
+    md += `### Claude\n${phase2.claude || 'Nicht vorhanden'}\n\n`;
+    md += `### Gemini\n${phase2.gemini || 'Nicht vorhanden'}\n\n`;
 
     md += `## 🎯 Synthese\n\n${synthesis}\n\n`;
 
