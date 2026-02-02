@@ -543,16 +543,80 @@ async function loadArchive() {
 }
 
 /**
- * Views a specific session (placeholder)
+ * Views a specific session
  * @param {string} id - Session ID
  */
 async function viewSession(id) {
-    // Später implementieren - zeigt Session-Details
-    alert('Session laden: ' + id);
+    try {
+        const result = await getSession(id);
+        if (result.status === 'success') {
+            displaySessionDetails(result.data);
+        } else {
+            alert('Fehler: ' + result.message);
+        }
+    } catch (error) {
+        alert('Fehler beim Laden: ' + error.message);
+    }
+}
+
+/**
+ * Displays session details in the modal
+ * @param {Object} session - Session data
+ */
+function displaySessionDetails(session) {
+    const modal = document.getElementById('archiveModal');
+
+    const problemText = session.problem?.raw || session.problem?.cleaned || 'Kein Problem gespeichert';
+    const synthesisText = session.synthesis || session.compare?.synthesis || 'Keine Synthese vorhanden';
+
+    let html = `
+        <div class="session-detail">
+            <div class="session-header">
+                <h2>${session.title || session.titleSlug || 'Session'}</h2>
+                <span class="session-date">${new Date(session.createdAt || Date.now()).toLocaleDateString('de-DE')}</span>
+            </div>
+
+            <div class="session-section">
+                <h3>📋 Problemstellung</h3>
+                <div class="session-content">${problemText}</div>
+            </div>
+
+            <div class="session-section">
+                <h3>🎯 Synthese</h3>
+                <div class="session-content synthesis-formatted">${formatMarkdown(synthesisText)}</div>
+            </div>
+
+            <div class="session-actions">
+                <button onclick="copySessionText('${encodeURIComponent(synthesisText)}')" class="btn-small">📋 Synthese kopieren</button>
+                <button onclick="closeModal()" class="btn-small">Schließen</button>
+                <button onclick="loadArchive()" class="btn-small">← Zurück zur Liste</button>
+            </div>
+        </div>
+    `;
+
+    modal.innerHTML = html;
+}
+
+/**
+ * Copies session text to clipboard
+ * @param {string} encodedText - URL-encoded text
+ */
+function copySessionText(encodedText) {
+    const text = decodeURIComponent(encodedText);
+    navigator.clipboard.writeText(text).then(() => {
+        alert('Kopiert!');
+    });
 }
 
 /**
  * Closes the archive modal
+ */
+function closeModal() {
+    document.getElementById('archiveModal').style.display = 'none';
+}
+
+/**
+ * Closes the archive modal (alias)
  */
 function closeArchiveModal() {
     document.getElementById('archiveModal').style.display = 'none';

@@ -213,11 +213,25 @@ function generateSessionId() {
     return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 }
 
+/**
+ * Gets a single session by ID from the backend
+ * @param {string} id - Session ID
+ * @returns {Promise<Object>} - Session data
+ */
+async function getSession(id) {
+    const response = await fetch(BACKEND_URL + '?action=getSession&id=' + id, {
+        method: 'GET',
+        redirect: 'follow'
+    });
+    return await response.json();
+}
+
 // Export for module usage (if needed)
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         saveSession,
         loadSessions,
+        getSession,
         synthesize,
         saveToLocalStorage,
         loadFromLocalStorage,

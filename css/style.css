@@ -873,3 +873,58 @@ footer {
     background: rgba(0, 0, 0, 0.7);
     z-index: -1;
 }
+
+/* ========================================
+   Session Detail View
+   ======================================== */
+
+.session-detail {
+    padding: 10px;
+}
+
+.session-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #4a4a6a;
+}
+
+.session-header h2 {
+    color: #74aa9c;
+    margin: 0;
+}
+
+.session-detail .session-date {
+    color: #888;
+}
+
+.session-section {
+    margin-bottom: 20px;
+}
+
+.session-section h3 {
+    color: #d97706;
+    margin-bottom: 10px;
+}
+
+.session-content {
+    background: #2a2a4a;
+    padding: 15px;
+    border-radius: 8px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+}
+
+.synthesis-formatted {
+    white-space: normal;
+}
+
+.session-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #4a4a6a;
+}
