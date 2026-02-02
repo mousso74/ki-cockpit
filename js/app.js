@@ -895,8 +895,26 @@ function displaySessionDetails(session) {
     const title = data.name || data.title || data.titleSlug || 'Session';
     const problem = data.problem || 'Kein Problem gespeichert';
 
-    // Extract synthesis text from various formats
-    const synthesis = extractSynthesisText(data.synthesis);
+    // Synthese extrahieren - kann verschachtelt sein
+    let synthesisText = data.synthesis || 'Keine Synthese vorhanden';
+    if (typeof synthesisText === 'string') {
+        try {
+            const parsed = JSON.parse(synthesisText);
+            if (parsed.data && parsed.data.synthesis) {
+                synthesisText = parsed.data.synthesis;
+            } else if (parsed.synthesis) {
+                synthesisText = parsed.synthesis;
+            }
+        } catch (e) {
+            // Kein JSON, ist bereits ein String
+        }
+    } else if (typeof synthesisText === 'object') {
+        if (synthesisText.data && synthesisText.data.synthesis) {
+            synthesisText = synthesisText.data.synthesis;
+        } else if (synthesisText.synthesis) {
+            synthesisText = synthesisText.synthesis;
+        }
+    }
 
     // Deduplizierte Fragen
     let questionsHtml = '';
@@ -953,7 +971,7 @@ function displaySessionDetails(session) {
 
             <div class="session-section">
                 <h3>🎯 Synthese</h3>
-                <div class="session-content synthesis-formatted">${formatMarkdown(synthesis)}</div>
+                <div class="session-content synthesis-formatted">${formatMarkdown(synthesisText)}</div>
             </div>
 
             <div class="session-actions">
@@ -992,8 +1010,26 @@ function generateSessionMarkdown(session) {
     const date = new Date(data.createdAt || Date.now()).toLocaleDateString('de-DE');
     const problem = data.problem || 'Kein Problem';
 
-    // Extract synthesis text from various formats
-    const synthesis = extractSynthesisText(data.synthesis);
+    // Synthese extrahieren - kann verschachtelt sein
+    let synthesisText = data.synthesis || 'Keine Synthese';
+    if (typeof synthesisText === 'string') {
+        try {
+            const parsed = JSON.parse(synthesisText);
+            if (parsed.data && parsed.data.synthesis) {
+                synthesisText = parsed.data.synthesis;
+            } else if (parsed.synthesis) {
+                synthesisText = parsed.synthesis;
+            }
+        } catch (e) {
+            // Kein JSON, ist bereits ein String
+        }
+    } else if (typeof synthesisText === 'object') {
+        if (synthesisText.data && synthesisText.data.synthesis) {
+            synthesisText = synthesisText.data.synthesis;
+        } else if (synthesisText.synthesis) {
+            synthesisText = synthesisText.synthesis;
+        }
+    }
 
     let md = `# ${title}\n`;
     md += `**Datum:** ${date}\n\n`;
@@ -1021,7 +1057,7 @@ function generateSessionMarkdown(session) {
     md += `### Claude\n${phase2.claude || 'Nicht vorhanden'}\n\n`;
     md += `### Gemini\n${phase2.gemini || 'Nicht vorhanden'}\n\n`;
 
-    md += `## 🎯 Synthese\n\n${synthesis}\n\n`;
+    md += `## 🎯 Synthese\n\n${synthesisText}\n\n`;
 
     md += `---\n*Exportiert aus KI-Cockpit*\n`;
 
