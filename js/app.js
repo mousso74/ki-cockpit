@@ -131,12 +131,14 @@ async function updateProjectDropdown() {
 
     try {
         // Load projects from backend
-        const response = await fetch(`${BACKEND_URL}?action=getProjects&category=${category}`);
+        const response = await fetch(`${BACKEND_URL}?action=getProjects`);
         const result = await response.json();
+        console.log('[app.js] Backend response:', result);
 
-        if (result.status === 'success' && result.data && result.data.projects) {
-            const projects = result.data.projects;
-            console.log('[app.js] Loaded projects:', projects);
+        if (result.status === 'success' && result.data) {
+            // Backend returns { geschäftlich: [...], privat: [...] }
+            const projects = result.data[category] || [];
+            console.log('[app.js] Loaded projects for', category + ':', projects);
 
             projects.forEach(projectName => {
                 const option = document.createElement('option');
