@@ -118,18 +118,26 @@
             loadProjectFilter();
 
             try {
-                const response = await fetch(`${BACKEND_URL}?action=listSessions`);
+                console.log('Fetching sessions from:', BACKEND_URL);
+                const response = await fetch(`${BACKEND_URL}?action=listSessions`, {
+                    method: 'GET',
+                    redirect: 'follow'
+                });
+                console.log('Response status:', response.status, response.ok);
                 const result = await response.json();
+                console.log('Result:', result);
 
                 if (result.status === 'success') {
                     allSessions = result.data || [];
+                    console.log('Sessions loaded:', allSessions.length);
                     renderSessions();
                 } else {
-                    sessionsList.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">Fehler beim Laden der Sessions</div></div>';
+                    console.error('Backend error:', result);
+                    sessionsList.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">Fehler beim Laden der Sessions: ' + (result.message || 'Unbekannt') + '</div></div>';
                 }
             } catch (error) {
                 console.error('Error loading sessions:', error);
-                sessionsList.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><div class="empty-state-text">Verbindungsfehler</div></div>';
+                sessionsList.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><div class="empty-state-text">Verbindungsfehler: ' + error.message + '</div></div>';
             }
         }
 
