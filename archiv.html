@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KI-Cockpit - Archiv</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/archiv.css">
+</head>
+<body>
+    <header>
+        <div class="header-left">
+            <a href="index.html" class="back-link">← Zurück zum Cockpit</a>
+            <h1>Archiv</h1>
+        </div>
+        <div class="header-stats">
+            <span id="sessionCount">0 Sessions</span>
+        </div>
+    </header>
+
+    <main>
+        <!-- Filter-Bereich -->
+        <section class="filter-section">
+            <div class="card">
+                <div class="filter-grid">
+                    <!-- Freitext-Suche -->
+                    <div class="filter-group filter-search">
+                        <label for="searchInput">Suche</label>
+                        <input type="text" id="searchInput" placeholder="Titel oder Problem durchsuchen...">
+                    </div>
+
+                    <!-- Kategorie -->
+                    <div class="filter-group">
+                        <label for="filterCategory">Kategorie</label>
+                        <select id="filterCategory">
+                            <option value="">Alle</option>
+                            <option value="geschäftlich">Geschäftlich</option>
+                            <option value="privat">Privat</option>
+                        </select>
+                    </div>
+
+                    <!-- Projekt -->
+                    <div class="filter-group">
+                        <label for="filterProject">Projekt</label>
+                        <select id="filterProject">
+                            <option value="">Alle Projekte</option>
+                        </select>
+                    </div>
+
+                    <!-- Datum von -->
+                    <div class="filter-group">
+                        <label for="filterDateFrom">Von</label>
+                        <input type="date" id="filterDateFrom">
+                    </div>
+
+                    <!-- Datum bis -->
+                    <div class="filter-group">
+                        <label for="filterDateTo">Bis</label>
+                        <input type="date" id="filterDateTo">
+                    </div>
+
+                    <!-- Reset Button -->
+                    <div class="filter-group filter-actions">
+                        <button id="resetFilters" class="btn btn-secondary">Filter zurücksetzen</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Ergebnis-Liste -->
+        <section class="results-section">
+            <div id="sessionList" class="session-list">
+                <!-- Sessions werden hier dynamisch eingefügt -->
+                <div class="loading-state">
+                    <div class="spinner"></div>
+                    <p>Sessions werden geladen...</p>
+                </div>
+            </div>
+
+            <!-- Leerer Zustand -->
+            <div id="emptyState" class="empty-state hidden">
+                <div class="empty-icon">📁</div>
+                <h3>Keine Sessions gefunden</h3>
+                <p>Passe deine Filter an oder erstelle eine neue Session im Cockpit.</p>
+            </div>
+        </section>
+    </main>
+
+    <!-- Detail-Modal -->
+    <div id="sessionModal" class="modal hidden">
+        <div class="modal-backdrop" onclick="closeModal()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Session Details</h2>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-meta">
+                    <span id="modalCategory" class="badge"></span>
+                    <span id="modalProject" class="badge badge-secondary"></span>
+                    <span id="modalDate" class="meta-date"></span>
+                </div>
+
+                <div class="modal-section">
+                    <h3>Problem</h3>
+                    <div id="modalProblem" class="content-box"></div>
+                </div>
+
+                <div class="modal-section" id="modalQuestionsSection">
+                    <h3>Deduplizierte Fragen</h3>
+                    <div id="modalQuestions" class="content-box"></div>
+                </div>
+
+                <div class="modal-section" id="modalSolutionsSection">
+                    <h3>KI-Lösungen</h3>
+                    <div class="solutions-grid">
+                        <div class="solution-card chatgpt">
+                            <h4>ChatGPT</h4>
+                            <div id="modalChatGPT" class="solution-content"></div>
+                        </div>
+                        <div class="solution-card claude">
+                            <h4>Claude</h4>
+                            <div id="modalClaude" class="solution-content"></div>
+                        </div>
+                        <div class="solution-card gemini">
+                            <h4>Gemini</h4>
+                            <div id="modalGemini" class="solution-content"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-section" id="modalSynthesisSection">
+                    <h3>Synthese</h3>
+                    <div id="modalSynthesis" class="content-box synthesis-box"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-danger" onclick="confirmDelete()">
+                    🗑️ Session löschen
+                </button>
+                <button class="btn btn-secondary" onclick="closeModal()">
+                    Schließen
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lösch-Bestätigung Modal -->
+    <div id="deleteModal" class="modal hidden">
+        <div class="modal-backdrop" onclick="closeDeleteModal()"></div>
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h2>Session löschen?</h2>
+                <button class="modal-close" onclick="closeDeleteModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <p class="delete-warning">
+                    ⚠️ Diese Aktion kann nicht rückgängig gemacht werden!
+                </p>
+                <p>Möchtest du die Session "<strong id="deleteSessionTitle"></strong>" wirklich dauerhaft löschen?</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-danger" onclick="executeDelete()">
+                    Ja, endgültig löschen
+                </button>
+                <button class="btn btn-secondary" onclick="closeDeleteModal()">
+                    Abbrechen
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast" class="toast hidden"></div>
+
+    <script src="js/storage.js"></script>
+    <script src="js/archiv.js"></script>
+</body>
+</html>

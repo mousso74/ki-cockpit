@@ -2,7 +2,7 @@
    KI-Cockpit V2.1 - Storage & Backend
    ======================================== */
 
-const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbzQpARH4j3iUXM8LcydtQspaDSHoPpkQEjDtH5xVC46RlYxjXxwYwtTnaDRbOhNd-Sc/exec';
+const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbx7vpSxKfMlGh9nggDNyeIq6wjQNR3F_WZN3ue8u8FAO6dZUbPNFMcE43yu7by6pTB9/exec';
 
 /**
  * Saves a session to the backend
@@ -222,6 +222,53 @@ async function getSession(id) {
     const response = await fetch(BACKEND_URL + '?action=getSession&id=' + id, {
         method: 'GET',
         redirect: 'follow'
+    });
+    return await response.json();
+}
+
+/**
+ * Lists all sessions from the backend
+ * @returns {Promise<Object>} - Object with status and data array
+ */
+async function listSessions() {
+    console.log('[storage.js] Listing all sessions');
+    const response = await fetch(BACKEND_URL + '?action=listSessions', {
+        method: 'GET',
+        redirect: 'follow'
+    });
+    return await response.json();
+}
+
+/**
+ * Gets all projects from the backend
+ * @returns {Promise<Object>} - Object with geschäftlich and privat arrays
+ */
+async function getProjects() {
+    console.log('[storage.js] Loading projects from backend');
+    const response = await fetch(BACKEND_URL + '?action=getProjects', {
+        method: 'GET',
+        redirect: 'follow'
+    });
+    return await response.json();
+}
+
+/**
+ * Deletes a session from the backend (Google Drive)
+ * @param {string} id - Session file ID
+ * @returns {Promise<Object>} - Result of deletion
+ */
+async function deleteSession(id) {
+    console.log('[storage.js] Deleting session:', id);
+    const response = await fetch(BACKEND_URL, {
+        method: 'POST',
+        redirect: 'follow',
+        headers: {
+            'Content-Type': 'text/plain',
+        },
+        body: JSON.stringify({
+            action: 'deleteSession',
+            id: id
+        })
     });
     return await response.json();
 }
