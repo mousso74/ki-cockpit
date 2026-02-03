@@ -1,10 +1,10 @@
-# KI-Cockpit V2.6 – Vollständige Technische Dokumentation
+# KI-Cockpit V3.4 – Vollständige Technische Dokumentation
 
-**Projektname:** KI-Cockpit  
-**Version:** 2.6.1  
-**Entwicklungszeitraum:** 1.–2. Februar 2026  
-**Lead-Architekt:** Claude (Anthropic)  
-**Assistenten:** Gemini (Google), ChatGPT (OpenAI)  
+**Projektname:** KI-Cockpit
+**Version:** 3.4
+**Entwicklungszeitraum:** 1.–3. Februar 2026
+**Lead-Architekt:** Claude (Anthropic)
+**Assistenten:** Gemini (Google), ChatGPT (OpenAI)
 **Eigentümer:** Armin (GitHub: mousso74)
 
 ---
@@ -16,13 +16,14 @@
 3. [Das Chef/Assistenten-Modell](#3-das-chefassistenten-modell)
 4. [Technologie-Stack](#4-technologie-stack)
 5. [Dateistruktur](#5-dateistruktur)
-6. [Workflow-Beschreibung](#6-workflow-beschreibung)
-7. [Prompt-Templates](#7-prompt-templates)
-8. [Backend-Code (Google Apps Script)](#8-backend-code-google-apps-script)
-9. [Frontend-Code (Wichtige Funktionen)](#9-frontend-code-wichtige-funktionen)
-10. [Versionsgeschichte](#10-versionsgeschichte)
-11. [Bekannte Probleme und Lösungen](#11-bekannte-probleme-und-lösungen)
-12. [URLs und Zugangsdaten](#12-urls-und-zugangsdaten)
+6. [Google Drive Ordnerstruktur (V3.0+)](#6-google-drive-ordnerstruktur-v30)
+7. [Workflow-Beschreibung](#7-workflow-beschreibung)
+8. [Prompt-Templates](#8-prompt-templates)
+9. [Backend-Code (Google Apps Script)](#9-backend-code-google-apps-script)
+10. [Frontend-Code (Wichtige Funktionen)](#10-frontend-code-wichtige-funktionen)
+11. [Versionsgeschichte](#11-versionsgeschichte)
+12. [Bekannte Probleme und Lösungen](#12-bekannte-probleme-und-lösungen)
+13. [URLs und Zugangsdaten](#13-urls-und-zugangsdaten)
 
 ---
 
@@ -31,13 +32,15 @@
 Das KI-Cockpit ist eine Web-Applikation, die drei KI-Modelle (ChatGPT, Claude, Gemini) parallel befragt, um komplexe Probleme zu lösen. Der Workflow umfasst:
 
 1. **Problemdefinition** durch den Benutzer
-2. **Automatische Prompt-Generierung** für alle drei KIs
-3. **Rückfragen-Sammlung** von allen drei KIs
-4. **Intelligente Deduplizierung** der Fragen via Gemini API
-5. **Beantwortung** der deduplizierten Fragen
-6. **Lösungsgenerierung** durch alle drei KIs
-7. **Synthese** der besten Lösung via Gemini API
-8. **Archivierung** und **Export** als Markdown
+2. **Kategorie- und Projektauswahl** (geschäftlich/privat + Projektordner)
+3. **Automatische Prompt-Generierung** für alle drei KIs
+4. **Rückfragen-Sammlung** von allen drei KIs
+5. **Intelligente Deduplizierung** der Fragen via Gemini API
+6. **Beantwortung** der deduplizierten Fragen
+7. **Lösungsgenerierung** durch alle drei KIs
+8. **Synthese** der besten Lösung via Gemini API
+9. **Archivierung** in Google Drive (hierarchische Ordnerstruktur)
+10. **Export** als Markdown
 
 ---
 
@@ -54,8 +57,9 @@ Das KI-Cockpit ist eine Web-Applikation, die drei KI-Modelle (ChatGPT, Claude, G
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐              │
 │  │   HTML      │  │   CSS       │  │   JavaScript │              │
 │  │ index.html  │  │ style.css   │  │ app.js       │              │
-│  └─────────────┘  └─────────────┘  │ prompts.js   │              │
-│                                     │ storage.js   │              │
+│  │ archiv.html │  │ archiv.css  │  │ prompts.js   │              │
+│  └─────────────┘  └─────────────┘  │ storage.js   │              │
+│                                     │ archiv.js    │              │
 │                                     └─────────────┘              │
 └─────────────────────────────────────────────────────────────────┘
                               │
@@ -65,16 +69,23 @@ Das KI-Cockpit ist eine Web-Applikation, die drei KI-Modelle (ChatGPT, Claude, G
 │                 BACKEND (Google Apps Script)                     │
 │  ┌─────────────────────────────────────────────────────────┐    │
 │  │  doPost() → Router                                       │    │
-│  │    ├── handleSaveSession()                               │    │
-│  │    ├── handleListSessions()                              │    │
-│  │    ├── handleGetSession()                                │    │
-│  │    ├── handleSynthesize()         ──────────────────┐    │    │
-│  │    ├── handleDeduplicateQuestions() ────────────────┤    │    │
-│  │    └── handleSaveExport()                           │    │    │
-│  └─────────────────────────────────────────────────────┼────┘    │
-└────────────────────────────────────────────────────────┼────────┘
-                                                         │
-                                                         ▼
+│  │    ├── handleSaveSession()      → Drive-Speicherung      │    │
+│  │    ├── handleListSessions()     → Session-Liste          │    │
+│  │    ├── handleGetSession()       → Session abrufen        │    │
+│  │    ├── handleGetProjects()      → Projekt-Liste (V3.0)   │    │
+│  │    ├── handleDeleteSession()    → Soft-Delete (V3.0)     │    │
+│  │    ├── handleSynthesize()       → Gemini-Synthese        │    │
+│  │    ├── handleDeduplicateQuestions() → Gemini-Dedupe      │    │
+│  │    └── handleSaveExport()       → Export speichern       │    │
+│  │                                                          │    │
+│  │  doGet() → Router (V3.0: alle via outputJSON())          │    │
+│  │    ├── listSessions                                      │    │
+│  │    ├── getSession                                        │    │
+│  │    └── getProjects (V3.0)                                │    │
+│  └──────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                      GEMINI API                                  │
 │              gemini-3-pro-preview                                │
@@ -86,9 +97,18 @@ Das KI-Cockpit ist eine Web-Applikation, die drei KI-Modelle (ChatGPT, Claude, G
 │                    GOOGLE DRIVE                                  │
 │  ┌─────────────────────────────────────────────────────────┐    │
 │  │  KI-Cockpit-Archiv/                                      │    │
-│  │    ├── 2026-02/                                          │    │
-│  │    │     ├── 2026-02-02_18-35__blaehungen-diagnose.json │    │
-│  │    │     └── 2026-02-02_19-42__email-an-ernest.json     │    │
+│  │    ├── geschäftlich/                                     │    │
+│  │    │     ├── Projekt-Alpha/                              │    │
+│  │    │     │     └── 2026-02-03_14-30__meeting-notes.json │    │
+│  │    │     └── Kunde-XYZ/                                  │    │
+│  │    │           └── 2026-02-03_16-45__anfrage.json       │    │
+│  │    ├── privat/                                           │    │
+│  │    │     ├── Gesundheit/                                 │    │
+│  │    │     │     └── 2026-02-02_18-35__diagnose.json      │    │
+│  │    │     └── Hobby/                                      │    │
+│  │    │           └── 2026-02-03_09-15__recherche.json     │    │
+│  │    ├── Papierkorb/                                       │    │
+│  │    │     └── [gelöschte Sessions]                        │    │
 │  │    └── Export/                                           │    │
 │  │          └── [PDF/MD Exporte]                            │    │
 │  └─────────────────────────────────────────────────────────┘    │
@@ -116,50 +136,6 @@ Das Projekt wurde mit einem innovativen Multi-KI-Entwicklungsansatz realisiert:
 3. **Assistent antwortet** → Lösung wird an Claude zurückgegeben
 4. **Claude konsolidiert** → Implementierung via Claude Code
 
-### Beispiel: Bug-Fix via Assistenten
-
-**Situation:** `text.replace is not a function` Fehler beim Session-Laden
-
-**Claudes Prompt an ChatGPT:**
-```
-## Kontext: KI-Cockpit V2.3 – Frontend-Bug beim Session-Laden
-
-### BUG 1: "text.replace is not a function"
-Beim Klicken auf eine gespeicherte Session im Archiv erscheint dieser Fehler.
-
-Vermutete Ursache: Die formatMarkdown() Funktion erhält kein String, 
-sondern undefined oder ein Objekt.
-
-Aktueller Code:
-function formatMarkdown(text) {
-  return text
-    .replace(/## (.*?)(\n|$)/g, '<h3>$1</h3>')
-    // ...
-}
-
-Deine Aufgabe: Liefere eine robuste Version von formatMarkdown()
-```
-
-**Claudes Prompt an Gemini:**
-```
-## Kontext: KI-Cockpit V2.3 – Backend-Bug bei Session-Speicherung
-
-### Das Problem:
-Die Sessions werden gespeichert, aber der titleSlug wird NICHT in den 
-Dateinamen übernommen.
-
-Erwartet: 2026-02-02_18-35__blaehungen-diagnose.json
-Tatsächlich: 2026-02-02_18-35__session.json
-
-### Meine Vermutung:
-Der Code liest data.titleSlug, aber die Daten sind in data.data.titleSlug 
-geschachtelt.
-
-Deine Aufgaben:
-1. Analysiere das Problem
-2. Liefere korrigierten handleSaveSession() Code
-```
-
 ---
 
 ## 4. Technologie-Stack
@@ -170,7 +146,7 @@ Deine Aufgaben:
 | Frontend-Sprache | Vanilla JavaScript | Kein Framework, direkte DOM-Manipulation |
 | Styling | CSS3 | Dark Theme, responsive |
 | Backend | Google Apps Script | Serverless, kostenlos |
-| Datenbank | Google Drive | JSON-Dateien als Speicher |
+| Datenbank | Google Drive | JSON-Dateien in hierarchischer Ordnerstruktur |
 | AI-Engine | Gemini API | gemini-3-pro-preview |
 | Versionskontrolle | Git/GitHub | Repository: mousso74/ki-cockpit |
 | Entwicklungstool | Claude Code | CLI-basierte Entwicklung |
@@ -182,23 +158,58 @@ Deine Aufgaben:
 ```
 ki-cockpit/
 ├── index.html              # Hauptseite mit State-Machine
+├── archiv.html             # Archiv-Übersicht (V3.0)
 ├── css/
-│   └── style.css           # Dark Theme Styling
+│   ├── style.css           # Dark Theme Styling (Hauptseite)
+│   └── archiv.css          # Archiv-Styling (V3.0)
 ├── js/
 │   ├── app.js              # Hauptlogik, State-Management
 │   ├── prompts.js          # Prompt-Templates (Questions, Solve)
-│   └── storage.js          # API-Kommunikation mit Backend
-└── README.md               # Projekt-Dokumentation
+│   ├── storage.js          # API-Kommunikation mit Backend
+│   └── archiv.js           # Archiv-Logik (V3.0)
+└── KI-COCKPIT_README.md    # Projekt-Dokumentation
 ```
 
 ---
 
-## 6. Workflow-Beschreibung
+## 6. Google Drive Ordnerstruktur (V3.0+)
+
+Ab Version 3.0 werden Sessions in einer hierarchischen Ordnerstruktur gespeichert:
+
+```
+KI-Cockpit-Archiv/
+├── geschäftlich/           # Kategorie
+│   ├── Projekt-Alpha/      # Projekt (dynamisch erstellt)
+│   │   ├── 2026-02-03_14-30__meeting-notes.json
+│   │   └── 2026-02-03_15-45__strategie.json
+│   └── Kunde-XYZ/
+│       └── 2026-02-03_16-45__anfrage.json
+├── privat/                 # Kategorie
+│   ├── Gesundheit/         # Projekt
+│   │   └── 2026-02-02_18-35__diagnose.json
+│   └── Allgemein/
+│       └── 2026-02-03_09-15__recherche.json
+├── Papierkorb/             # Soft-Delete (V3.0)
+│   └── [gelöschte Sessions mit originalem Pfad im Dateinamen]
+└── Export/
+    └── [PDF/MD Exporte]
+```
+
+### Kategorie- und Projektauswahl (Frontend)
+
+Die Hauptseite (index.html) enthält:
+- **Kategorie-Dropdown:** geschäftlich / privat
+- **Projekt-Dropdown:** Dynamisch geladen via `getProjects` API
+- **Neues Projekt erstellen:** Inline-Eingabefeld
+
+---
+
+## 7. Workflow-Beschreibung
 
 ### State-Machine (6 Zustände)
 
 ```
-State 0: PROBLEM_INPUT
+State 0: PROBLEM_INPUT (+ Kategorie/Projekt-Auswahl)
     │
     ▼ [Prompts generieren]
 State 1: PHASE1_PROMPTS
@@ -222,28 +233,21 @@ State 5: SYNTHESIS (Synthese via Gemini)
 
 **Problem:** Drei KIs stellen zusammen ~30 Fragen, viele davon semantisch identisch.
 
-**Vorher (V1):** Jaccard-Ähnlichkeit (statisch, nur Wortvergleich)
-- Ergebnis: 20+ ähnliche Fragen
-
-**Nachher (V2):** Gemini API (semantisch)
+**Lösung (V2+):** Gemini API (semantisch)
 - Ergebnis: 5-8 präzise, deduplizierte Fragen
 
-**Beispiel:**
-```
-Input (3 KIs):
-- ChatGPT: "Treten die Blähungen in zeitlichem Zusammenhang mit Mahlzeiten auf?"
-- Claude: "Wann treten die Blähungen typischerweise auf – nach Mahlzeiten?"
-- Gemini: "Gibt es einen Zusammenhang mit bestimmten Nahrungsmitteln?"
-
-Output (dedupliziert):
-- "Gibt es einen erkennbaren Zusammenhang zu bestimmten Mahlzeiten oder 
-   Lebensmitteln und wie sieht Ihre typische Ernährung aus?"
-  [Sources: ChatGPT, Claude, Gemini] [Priority: P2]
+**V3.0+ Fix:** Robuste JSON-Extraktion für "chatty" Gemini 3 Modelle:
+```javascript
+// Regex-Extraktion für JSON-Arrays aus Gemini-Output
+const jsonMatch = rawText.match(/\[\s*\{[\s\S]*\}\s*\]/);
+if (jsonMatch) {
+  questions = JSON.parse(jsonMatch[0]);
+}
 ```
 
 ---
 
-## 7. Prompt-Templates
+## 8. Prompt-Templates
 
 ### Questions-Template V2 (SYSTEM)
 
@@ -321,61 +325,9 @@ You must internally verify compliance with all rules before responding.
 If compliance is not met, correct the output silently before returning it.
 ```
 
-### Solve-Template V2 (USER)
-
-```
-[PROBLEM]
-{PROBLEM_TEXT}
-[/PROBLEM]
-
-[CLARIFYING_QA]
-{QA_BLOCK}
-[/CLARIFYING_QA]
-
-[TASK]
-Based on the problem and the clarified Q&A:
-1) Decide whether you have sufficient information to proceed.
-2) If yes, provide a clear and actionable solution.
-3) If no, request only the missing information.
-
-[OUTPUT_FORMAT]
-Return EXACTLY the following structure and nothing else:
-
-[STATUS]
-- readiness: {READY | NEEDS_INFO}
-- confidence: {0-100}
-[/STATUS]
-
-[FOLLOWUP_QUESTIONS]
-IF readiness = NEEDS_INFO: List missing questions
-IF readiness = READY: Write exactly: NONE
-[/FOLLOWUP_QUESTIONS]
-
-[SOLUTION]
-IF readiness = READY: Provide the solution.
-IF readiness = NEEDS_INFO: Write exactly: PENDING
-[/SOLUTION]
-
-[ACTION_PLAN]
-IF readiness = READY: List concrete next steps (numbered).
-IF readiness = NEEDS_INFO: Write exactly: PENDING
-[/ACTION_PLAN]
-
-[RISKS]
-IF readiness = READY: List relevant risks and countermeasures.
-IF readiness = NEEDS_INFO: Write exactly: PENDING
-[/RISKS]
-
-[ASSUMPTIONS]
-List assumptions that materially affect the solution.
-If none: Write exactly: NONE
-[/ASSUMPTIONS]
-[/OUTPUT_FORMAT]
-```
-
 ---
 
-## 8. Backend-Code (Google Apps Script)
+## 9. Backend-Code (Google Apps Script)
 
 ### Haupt-Router (doPost)
 
@@ -384,7 +336,7 @@ function doPost(e) {
   try {
     const data = JSON.parse(e.postData.contents);
     const action = data.action;
-    
+
     let result;
     switch(action) {
       case 'saveSession':
@@ -395,6 +347,12 @@ function doPost(e) {
         break;
       case 'getSession':
         result = handleGetSession(data.id);
+        break;
+      case 'getProjects':
+        result = handleGetProjects(data.category);
+        break;
+      case 'deleteSession':
+        result = handleDeleteSession(data.id);
         break;
       case 'synthesize':
         result = handleSynthesize(data);
@@ -408,116 +366,160 @@ function doPost(e) {
       default:
         result = errorResponse('Unknown action: ' + action);
     }
-    
-    return ContentService.createTextOutput(JSON.stringify(result))
-      .setMimeType(ContentService.MimeType.JSON);
-      
+
+    return outputJSON(result);
+
   } catch (error) {
-    return ContentService.createTextOutput(JSON.stringify({
+    return outputJSON({
       status: 'error',
       message: error.toString()
-    })).setMimeType(ContentService.MimeType.JSON);
+    });
   }
 }
 ```
 
-### handleSaveSession (korrigiert für verschachtelte Daten)
+### doGet (V3.0: CORS-Fix mit outputJSON)
+
+```javascript
+function doGet(e) {
+  try {
+    const action = e.parameter.action;
+
+    switch(action) {
+      case 'listSessions':
+        return outputJSON(handleListSessions());
+      case 'getSession':
+        return outputJSON(handleGetSession(e.parameter.id));
+      case 'getProjects':
+        return outputJSON(handleGetProjects(e.parameter.category));
+      default:
+        return outputJSON(errorResponse('Unknown action'));
+    }
+  } catch (error) {
+    return outputJSON({ status: 'error', message: error.toString() });
+  }
+}
+```
+
+### outputJSON Helper (V3.0 CORS-Fix)
+
+```javascript
+function outputJSON(data) {
+  return ContentService.createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+```
+
+### handleGetProjects (V3.0)
+
+```javascript
+function handleGetProjects(category) {
+  const rootFolder = getOrCreateFolder(SETTINGS.ROOT_FOLDER_NAME);
+  const catFolder = getOrCreateFolder(category, rootFolder);
+
+  const projects = [];
+  const folders = catFolder.getFolders();
+
+  while (folders.hasNext()) {
+    const folder = folders.next();
+    const name = folder.getName();
+    if (name !== 'Export' && name !== 'Papierkorb') {
+      projects.push(name);
+    }
+  }
+
+  projects.sort();
+  return successResponse({ projects: projects });
+}
+```
+
+### handleDeleteSession (V3.0 Soft-Delete)
+
+```javascript
+function handleDeleteSession(fileId) {
+  const rootFolder = getOrCreateFolder(SETTINGS.ROOT_FOLDER_NAME);
+  const trashFolder = getOrCreateFolder('Papierkorb', rootFolder);
+
+  const file = DriveApp.getFileById(fileId);
+  const originalName = file.getName();
+  const parents = file.getParents();
+
+  let originalPath = '';
+  if (parents.hasNext()) {
+    const parent = parents.next();
+    const grandparents = parent.getParents();
+    if (grandparents.hasNext()) {
+      originalPath = grandparents.next().getName() + '_' + parent.getName() + '_';
+    }
+  }
+
+  // Verschieben statt löschen
+  file.moveTo(trashFolder);
+  file.setName(originalPath + originalName);
+
+  return successResponse({ message: 'Session in Papierkorb verschoben' });
+}
+```
+
+### handleSaveSession (V3.0: mit Kategorie/Projekt)
 
 ```javascript
 function handleSaveSession(payload) {
   const rootFolder = getOrCreateFolder(SETTINGS.ROOT_FOLDER_NAME);
-  
-  // Zugriff auf die verschachtelten Daten
-  const sessionContent = payload.data || {}; 
-  
-  const monthString = Utilities.formatDate(new Date(), "GMT+1", "yyyy-MM");
-  const monthFolder = getOrCreateFolder(monthString, rootFolder);
-  
+
+  const sessionContent = payload.data || {};
+
+  // V3.0: Kategorie und Projekt aus Session-Daten
+  const category = sessionContent.category || 'privat';
+  const project = sessionContent.project || 'Allgemein';
+
+  const catFolder = getOrCreateFolder(category, rootFolder);
+  const projectFolder = getOrCreateFolder(project, catFolder);
+
   const timestamp = Utilities.formatDate(new Date(), "GMT+1", "yyyy-MM-dd_HH-mm");
-  
-  // Korrekter Zugriff auf den titleSlug innerhalb von payload.data
   const slug = sessionContent.titleSlug || "session";
   const fileName = `${timestamp}__${slug}.json`;
-  
-  // Nur den Inhalt von 'data' speichern
-  const file = monthFolder.createFile(
-    fileName, 
-    JSON.stringify(sessionContent, null, 2), 
+
+  const file = projectFolder.createFile(
+    fileName,
+    JSON.stringify(sessionContent, null, 2),
     MimeType.PLAIN_TEXT
   );
-  
-  return successResponse({ 
-    id: file.getId(), 
+
+  return successResponse({
+    id: file.getId(),
     name: fileName,
-    slug: slug 
+    slug: slug,
+    category: category,
+    project: project
   });
 }
 ```
 
-### handleListSessions (optimiert)
-
-```javascript
-function handleListSessions() {
-  const rootFolder = getOrCreateFolder(SETTINGS.ROOT_FOLDER_NAME);
-  const folders = rootFolder.getFolders();
-  let allFiles = [];
-
-  while (folders.hasNext()) {
-    const folder = folders.next();
-    if (folder.getName() === "Export") continue;
-
-    const files = folder.getFiles();
-    while (files.hasNext()) {
-      const file = files.next();
-      if (file.getName().endsWith(".json")) {
-        const rawName = file.getName().replace(".json", "");
-        
-        // Extraktion von Zeitstempel und Titel
-        const parts = rawName.split("__");
-        const timestamp = parts[0];
-        const title = parts.length > 1 ? parts[1] : "Unbenannte Session";
-
-        allFiles.push({
-          id: file.getId(),
-          fileName: file.getName(),
-          displayTitle: title,
-          timestamp: timestamp,
-          date: file.getDateCreated(),
-          folder: folder.getName()
-        });
-      }
-    }
-  }
-  
-  allFiles.sort((a, b) => b.date - a.date);
-  return successResponse(allFiles);
-}
-```
-
-### handleDeduplicateQuestions (Smart Dedupe via Gemini)
+### handleDeduplicateQuestions (V3.0: Robuste JSON-Extraktion)
 
 ```javascript
 function handleDeduplicateQuestions(data) {
   const apiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${apiKey}`;
-  
+
   const prompt = `
-Du bist ein erfahrener Strategieberater. Vor dir liegen Listen von Rückfragen dreier KI-Assistenten (ChatGPT, Claude, Gemini) zu folgendem Problem:
+Du bist ein erfahrener Strategieberater. Vor dir liegen Listen von Rückfragen dreier KI-Assistenten zu folgendem Problem:
 
 [ORIGINAL_PROBLEM]
 ${data.originalProblem}
 [/ORIGINAL_PROBLEM]
 
 [CHATGPT_QUESTIONS]
-${data.questions.chatgpt.join('\n')}
+${(data.questions.chatgpt || []).join('\n')}
 [/CHATGPT_QUESTIONS]
 
 [CLAUDE_QUESTIONS]
-${data.questions.claude.join('\n')}
+${(data.questions.claude || []).join('\n')}
 [/CLAUDE_QUESTIONS]
 
 [GEMINI_QUESTIONS]
-${data.questions.gemini.join('\n')}
+${(data.questions.gemini || []).join('\n')}
 [/GEMINI_QUESTIONS]
 
 AUFGABE:
@@ -526,7 +528,9 @@ AUFGABE:
 3. Weise jeder Frage eine Priorität zu (P1 = kritisch, P2 = wichtig, P3 = optional)
 4. Gib an, welche KI(s) diese Frage gestellt haben
 
-OUTPUT FORMAT (JSON):
+WICHTIG: Antworte NUR mit einem JSON-Array, KEIN Text davor oder danach!
+
+[OUTPUT]
 [
   {
     "question": "Die deduplizierte Frage",
@@ -535,62 +539,76 @@ OUTPUT FORMAT (JSON):
     "reason": "Kurze Begründung"
   }
 ]
-
-Antworte NUR mit dem JSON-Array, ohne zusätzlichen Text.
+[/OUTPUT]
 `;
-  
+
   const payload = {
     contents: [{ parts: [{ text: prompt }] }],
-    generationConfig: { 
-      temperature: 0.2,
-      responseMimeType: "application/json"
+    generationConfig: {
+      temperature: 0.2
     }
   };
-  
+
   const response = UrlFetchApp.fetch(url, {
     method: "post",
     contentType: "application/json",
     payload: JSON.stringify(payload),
     muteHttpExceptions: true
   });
-  
+
   const result = JSON.parse(response.getContentText());
-  
+
   if (result.error) {
     return errorResponse(result.error.message);
   }
-  
-  const synthesisText = result.candidates[0].content.parts[0].text;
-  const questions = JSON.parse(synthesisText);
-  
+
+  const rawText = result.candidates[0].content.parts[0].text;
+
+  // V3.0: Robuste JSON-Extraktion für "chatty" Gemini 3 Modelle
+  let questions;
+  try {
+    questions = JSON.parse(rawText);
+  } catch (e) {
+    // Versuche JSON-Array aus Text zu extrahieren
+    const jsonMatch = rawText.match(/\[\s*\{[\s\S]*\}\s*\]/);
+    if (jsonMatch) {
+      questions = JSON.parse(jsonMatch[0]);
+    } else {
+      return errorResponse('Could not parse Gemini response: ' + rawText.substring(0, 200));
+    }
+  }
+
   return successResponse({ questions: questions });
 }
 ```
 
-### handleSynthesize
+### handleSynthesize (V3.0: Null-Checks + explizite Tags)
 
 ```javascript
 function handleSynthesize(data) {
   const apiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${apiKey}`;
-  
+
+  // V3.0: Null-safe Zugriff auf solutions
+  const solutions = data.solutions || {};
+
   const prompt = `
 Du bist ein erfahrener Strategieberater. Drei KI-Assistenten haben unabhängig voneinander Lösungen für folgendes Problem erarbeitet:
 
 [PROBLEM]
-${data.problem}
+${data.problem || 'Kein Problem angegeben'}
 [/PROBLEM]
 
 [CHATGPT_LÖSUNG]
-${data.solutions.chatgpt}
+${solutions.chatgpt || 'Keine Lösung von ChatGPT'}
 [/CHATGPT_LÖSUNG]
 
 [CLAUDE_LÖSUNG]
-${data.solutions.claude}
+${solutions.claude || 'Keine Lösung von Claude'}
 [/CLAUDE_LÖSUNG]
 
 [GEMINI_LÖSUNG]
-${data.solutions.gemini}
+${solutions.gemini || 'Keine Lösung von Gemini'}
 [/GEMINI_LÖSUNG]
 
 AUFGABE:
@@ -600,26 +618,27 @@ WICHTIG:
 - Wenn alle drei KIs einen Punkt betonen, ist er besonders relevant
 - Wenn nur eine KI einen Punkt erwähnt, prüfe kritisch ob er wertvoll ist
 - Strukturiere die Lösung klar mit [SOLUTION], [ACTION_PLAN], [RISKS], [ASSUMPTIONS]
+- Antworte auf Deutsch
 `;
-  
+
   const payload = {
     contents: [{ parts: [{ text: prompt }] }],
     generationConfig: { temperature: 0.7 }
   };
-  
+
   const response = UrlFetchApp.fetch(url, {
     method: "post",
     contentType: "application/json",
     payload: JSON.stringify(payload),
     muteHttpExceptions: true
   });
-  
+
   const result = JSON.parse(response.getContentText());
-  
+
   if (result.error) {
     return errorResponse(result.error.message);
   }
-  
+
   const synthesisText = result.candidates[0].content.parts[0].text;
   return successResponse({ synthesis: synthesisText });
 }
@@ -627,7 +646,7 @@ WICHTIG:
 
 ---
 
-## 9. Frontend-Code (Wichtige Funktionen)
+## 10. Frontend-Code (Wichtige Funktionen)
 
 ### formatMarkdown (robust)
 
@@ -677,7 +696,7 @@ function formatMarkdown(input) {
 ```javascript
 function extractSynthesisText(synthesis) {
   if (!synthesis) return 'Keine Synthese vorhanden';
-  
+
   // Fall 1: Bereits ein String
   if (typeof synthesis === 'string') {
     try {
@@ -694,7 +713,7 @@ function extractSynthesisText(synthesis) {
     }
     return synthesis;
   }
-  
+
   // Fall 2: Objekt mit data.synthesis
   if (typeof synthesis === 'object') {
     if (synthesis.data && synthesis.data.synthesis) {
@@ -708,77 +727,53 @@ function extractSynthesisText(synthesis) {
     }
     return JSON.stringify(synthesis, null, 2);
   }
-  
+
   return String(synthesis);
 }
 ```
 
-### makeTitleSlug
+### loadProjects (V3.0)
 
 ```javascript
-function makeTitleSlug(title) {
-  const t = (title || '').trim() || 'Session';
-  const map = { ä: 'ae', ö: 'oe', ü: 'ue', ß: 'ss' };
+async function loadProjects(category) {
+  try {
+    const response = await fetch(`${BACKEND_URL}?action=getProjects&category=${category}`);
+    const result = await response.json();
 
-  const slug = t
-    .toLowerCase()
-    .replace(/[äöüß]/g, m => map[m] || m)
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .substring(0, 40);
-
-  return slug || 'session';
+    if (result.status === 'success') {
+      return result.data.projects || [];
+    }
+    return [];
+  } catch (error) {
+    console.error('Error loading projects:', error);
+    return [];
+  }
 }
 ```
 
-### markdownToPlainText
+### updateProjectDropdown (V3.0)
 
 ```javascript
-function markdownToPlainText(md) {
-  if (typeof md !== 'string') md = md == null ? '' : String(md);
+async function updateProjectDropdown() {
+  const category = document.getElementById('categorySelect').value;
+  const projectSelect = document.getElementById('projectSelect');
 
-  let s = md.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  projectSelect.innerHTML = '<option value="">Projekt wählen...</option>';
 
-  // Headings entfernen
-  s = s.replace(/^\s{0,3}#{1,6}\s+/gm, '');
+  const projects = await loadProjects(category);
 
-  // Bold/italic/code markers entfernen
-  s = s.replace(/\*\*(.+?)\*\*/g, '$1');
-  s = s.replace(/\*(.+?)\*/g, '$1');
-  s = s.replace(/`([^`]+)`/g, '$1');
+  projects.forEach(project => {
+    const option = document.createElement('option');
+    option.value = project;
+    option.textContent = project;
+    projectSelect.appendChild(option);
+  });
 
-  // Listen konvertieren
-  s = s.replace(/^\s*[-•]\s+/gm, '- ');
-  s = s.replace(/^\s*(\d+)\.\s+/gm, '$1) ');
-
-  // Mehrfache Leerzeilen reduzieren
-  s = s.replace(/\n{3,}/g, '\n\n').trim();
-
-  return s;
-}
-```
-
-### openAsEmail
-
-```javascript
-function openAsEmail() {
-  const title = document.getElementById('sessionTitle')?.value?.trim() || 'KI-Cockpit Session';
-
-  const date = new Date();
-  const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-
-  const subject = `KI-Cockpit – ${title} – ${dateStr}`;
-
-  const md = window.currentSynthesis || '';
-  const plainText = markdownToPlainText(md);
-
-  const MAX_MAILTO_BODY = 8000;
-  const safeBody = plainText.length > MAX_MAILTO_BODY
-    ? plainText.substring(0, MAX_MAILTO_BODY) + '\n\n(Text gekürzt - bitte im Cockpit kopieren)'
-    : plainText;
-
-  const mailto = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(safeBody)}`;
-  window.location.href = mailto;
+  // Option für neues Projekt
+  const newOption = document.createElement('option');
+  newOption.value = '__new__';
+  newOption.textContent = '+ Neues Projekt erstellen';
+  projectSelect.appendChild(newOption);
 }
 ```
 
@@ -787,24 +782,24 @@ function openAsEmail() {
 ```javascript
 function generateSessionMarkdown(session) {
   const data = session.data || session;
-  
+
   const title = data.name || data.title || data.titleSlug || 'Session';
   const date = new Date(data.createdAt || Date.now()).toLocaleDateString('de-DE');
   const problem = data.problem || 'Kein Problem';
-  
+
   // Synthese extrahieren
   let synthesisText = extractSynthesisText(data.synthesis);
-  
+
   let md = `# ${title}\n`;
   md += `**Datum:** ${date}\n\n`;
   md += `---\n\n`;
-  
-  md += `## 📋 Problemstellung\n\n${problem}\n\n`;
-  
-  md += `## ❓ Fragen & Antworten\n\n`;
+
+  md += `## Problemstellung\n\n${problem}\n\n`;
+
+  md += `## Fragen & Antworten\n\n`;
   const questions = data.deduplicatedQuestions || [];
   const answers = data.answers || [];
-  
+
   if (questions.length > 0) {
     questions.forEach((q, i) => {
       const questionText = typeof q === 'string' ? q : (q.question || 'Frage');
@@ -814,24 +809,24 @@ function generateSessionMarkdown(session) {
       md += `*Antwort:* ${answer}\n\n`;
     });
   }
-  
+
   const phase2 = data.phase2Outputs || {};
-  md += `## 🤖 KI-Lösungen\n\n`;
+  md += `## KI-Lösungen\n\n`;
   md += `### ChatGPT\n${phase2.chatgpt || 'Nicht vorhanden'}\n\n`;
   md += `### Claude\n${phase2.claude || 'Nicht vorhanden'}\n\n`;
   md += `### Gemini\n${phase2.gemini || 'Nicht vorhanden'}\n\n`;
-  
-  md += `## 🎯 Synthese\n\n${synthesisText}\n\n`;
-  
+
+  md += `## Synthese\n\n${synthesisText}\n\n`;
+
   md += `---\n*Exportiert aus KI-Cockpit*\n`;
-  
+
   return md;
 }
 ```
 
 ---
 
-## 10. Versionsgeschichte
+## 11. Versionsgeschichte
 
 | Version | Datum | Änderungen |
 |---------|-------|------------|
@@ -845,10 +840,32 @@ function generateSessionMarkdown(session) {
 | V2.5 | 02.02.2026 | Fix: title undefined, displayTitle, synthesis object |
 | V2.6 | 02.02.2026 | UTF-8 Encoding, Synthese-Extraktion |
 | V2.6.1 | 02.02.2026 | Finaler Fix: Synthese im Markdown-Export |
+| **V3.0** | **03.02.2026** | **Neue Ordnerstruktur: geschäftlich/privat + Projekte** |
+| | | - Neue Backend-Funktionen: handleGetProjects(), handleDeleteSession() |
+| | | - Modifiziert: handleSaveSession() (Kategorie/Projekt-Support) |
+| | | - Modifiziert: handleListSessions() (alle Kategorien/Projekte durchsuchen) |
+| | | - Neue Frontend-Dateien: archiv.html, css/archiv.css, js/archiv.js |
+| | | - Kategorie- und Projekt-Auswahl auf Hauptseite |
+| | | - Archiv-Link im Header |
+| **V3.1** | **03.02.2026** | **Deduplizierung-Fix** |
+| | | - Frontend sendete `{questions: [...]}`, Backend erwartete direkt Array |
+| | | - Fix: `result.data.questions \|\| result.data` |
+| **V3.2** | **03.02.2026** | **Synthese-Fix** |
+| | | - Frontend sendete `data.responses`, Backend erwartete `data.solutions` |
+| | | - Fix: Frontend sendet jetzt `solutions` statt `responses` |
+| | | - Null-Checks in handleSynthesize() hinzugefügt |
+| **V3.3** | **03.02.2026** | **CORS-Fix für doGet()** |
+| | | - `errorResponse()` gab plain Object zurück statt ContentService |
+| | | - Fix: Alle doGet()-Returns durch `outputJSON()` gewrappt |
+| | | - Archiv-Seite kann jetzt Sessions laden |
+| **V3.4** | **03.02.2026** | **Gemini 3 "Chatty" Output Fix** |
+| | | - Gemini 3 pro preview fügt Text um JSON-Output hinzu |
+| | | - Fix: Regex-Extraktion `rawText.match(/\[\s*\{[\s\S]*\}\s*\]/)` |
+| | | - Explizite [OUTPUT]-Tags in Prompts |
 
 ---
 
-## 11. Bekannte Probleme und Lösungen
+## 12. Bekannte Probleme und Lösungen
 
 ### Problem: Quota Exceeded (Gemini API)
 
@@ -860,6 +877,38 @@ function generateSessionMarkdown(session) {
 1. Google Cloud Billing aktivieren (kostenloser Testzeitraum)
 2. Projekt aus Sandbox-Modus befreien
 3. Alternative: Modell wechseln (gemini-1.5-flash hat höheres Limit)
+
+### Problem: forEach is not a function (V3.1)
+
+**Symptom:** Fehler beim Verarbeiten der deduplizierten Fragen
+
+**Ursache:** Backend gibt `{questions: [...]}` zurück, Frontend erwartet direktes Array
+
+**Lösung:** `result.data.questions || result.data` verwenden
+
+### Problem: Synthese erhält undefined solutions (V3.2)
+
+**Symptom:** Backend-Log zeigt `undefined` für alle drei KI-Lösungen
+
+**Ursache:** Frontend sendet `responses`, Backend erwartet `solutions`
+
+**Lösung:** Frontend angepasst: `solutions: { chatgpt, claude, gemini }`
+
+### Problem: CORS "Failed to fetch" im Archiv (V3.3)
+
+**Symptom:** Archiv-Seite kann keine Sessions laden
+
+**Ursache:** `errorResponse()` gibt plain Object zurück, nicht ContentService
+
+**Lösung:** Alle doGet()-Returns durch `outputJSON()` wrappen
+
+### Problem: Gemini 3 fügt Text um JSON hinzu (V3.4)
+
+**Symptom:** `JSON.parse()` schlägt fehl, weil Output wie "Hier ist das JSON: [...]" aussieht
+
+**Ursache:** Gemini 3 pro preview ist "chattier" als ältere Modelle
+
+**Lösung:** Regex-Extraktion: `rawText.match(/\[\s*\{[\s\S]*\}\s*\]/)`
 
 ### Problem: Session-Daten nicht geladen
 
@@ -887,7 +936,7 @@ function generateSessionMarkdown(session) {
 
 ---
 
-## 12. URLs und Zugangsdaten
+## 13. URLs und Zugangsdaten
 
 ### Öffentliche URLs
 
@@ -907,17 +956,17 @@ function generateSessionMarkdown(session) {
 | **Google AI Studio** | https://aistudio.google.com/ | API-Key-Verwaltung |
 | **Google Cloud Console** | https://console.cloud.google.com/ | Billing, Quota |
 
-### ⚠️ SENSIBLE URLs (NICHT ÖFFENTLICH TEILEN)
+### SENSIBLE URLs (NICHT ÖFFENTLICH TEILEN)
 
 | Ressource | URL | Sicherheitshinweis |
 |-----------|-----|-------------------|
-| **Backend V2.4** | `https://script.google.com/macros/s/AKfycbxK6GTY9xNBR3vmVF3aV-bd7RrU5IWxA7RDqXDuOQCfzZhM4ONz6RkLPVSMnj9aBYoq/exec` | ⚠️ Diese URL ermöglicht direkten Zugriff auf das Backend. Missbrauch könnte API-Kosten verursachen. |
+| **Backend V3.4** | `https://script.google.com/macros/s/AKfycbzdUdWbgjp0wofYk2M1Ui8FcaB10awsrgTzojOWaJS9jAXWzopQUdFBDxd0bu9D9z8p/exec` | Diese URL ermöglicht direkten Zugriff auf das Backend. Missbrauch könnte API-Kosten verursachen. |
 
 ### API-Keys
 
 | Service | Speicherort | Hinweis |
 |---------|-------------|---------|
-| **Gemini API Key** | Google Apps Script → Projekteinstellungen → Script Properties → `GEMINI_API_KEY` | ⚠️ NIEMALS im Code hardcoden oder öffentlich teilen |
+| **Gemini API Key** | Google Apps Script → Projekteinstellungen → Script Properties → `GEMINI_API_KEY` | NIEMALS im Code hardcoden oder öffentlich teilen |
 
 ---
 
@@ -929,21 +978,27 @@ Falls eine andere KI dieses Projekt weiterentwickeln soll:
 
 2. **Claude Code installieren:** Via Anthropic-Dokumentation
 
-3. **Backend verstehen:** 
+3. **Backend verstehen:**
    - Öffne https://script.google.com/
    - Suche nach "KI-Cockpit-Backend"
-   - Prüfe die `doPost()` Funktion
+   - Prüfe die `doPost()` und `doGet()` Funktionen
 
 4. **Wichtige Patterns:**
    - Daten sind oft verschachtelt: `data.data.field`
    - Synthese kann JSON-String sein: immer `extractSynthesisText()` nutzen
    - Prompts müssen "gehärtet" sein: keine Extra-Ausgabe außerhalb der definierten Blöcke
+   - Gemini 3 ist "chatty": Regex-Extraktion für JSON verwenden
 
 5. **Deployment-Workflow:**
    - Frontend: `git push` → GitHub Pages aktualisiert automatisch
    - Backend: Google Apps Script → Bereitstellen → Neue Bereitstellung
 
+6. **V3.0+ Ordnerstruktur:**
+   - Sessions werden in `KI-Cockpit-Archiv/{kategorie}/{projekt}/` gespeichert
+   - Soft-Delete verschiebt in `Papierkorb/`
+   - Export-Dateien in `Export/`
+
 ---
 
-*Dokumentation erstellt am 02.02.2026 von Claude (Anthropic)*  
+*Dokumentation erstellt am 02.02.2026, aktualisiert am 03.02.2026 von Claude (Anthropic)*
 *Für Fragen: Kontext aus dieser README an eine neue KI übergeben*
