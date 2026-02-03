@@ -388,8 +388,10 @@ async function analyzeQuestions() {
         });
 
         if (result.status === 'success' && result.data) {
-            // Backend gibt { questions: [...] } zurück, also extrahieren wir das Array
-            const questions = result.data.questions || result.data;
+            // Backend V3.1 gibt direkt das Array in result.data zurück
+            // Fallback auf result.data.questions falls altes Format
+            const questions = Array.isArray(result.data) ? result.data : (result.data.questions || result.data);
+            console.log('[app.js] Deduplicated questions received:', questions.length);
             displayDeduplicatedQuestions(questions);
             session.deduplicatedQuestions = questions;
             window.deduplicatedQuestions = questions;
