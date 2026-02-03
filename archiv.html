@@ -197,18 +197,27 @@
 
         // Load single session details
         async function loadSession(id) {
+            console.log('Loading session with ID:', id);
             try {
-                const response = await fetch(`${BACKEND_URL}?action=getSession&id=${id}`);
+                const url = `${BACKEND_URL}?action=getSession&id=${id}`;
+                console.log('Fetching from:', url);
+                const response = await fetch(url, {
+                    method: 'GET',
+                    redirect: 'follow'
+                });
+                console.log('Response status:', response.status, response.ok);
                 const result = await response.json();
+                console.log('Session result:', result);
 
                 if (result.status === 'success') {
                     showSessionDetail(result.data);
                 } else {
-                    showToast('Fehler beim Laden der Session', 'error');
+                    console.error('Backend returned error:', result);
+                    showToast('Fehler beim Laden der Session: ' + (result.message || 'Unbekannt'), 'error');
                 }
             } catch (error) {
                 console.error('Error loading session:', error);
-                showToast('Verbindungsfehler', 'error');
+                showToast('Verbindungsfehler: ' + error.message, 'error');
             }
         }
 
