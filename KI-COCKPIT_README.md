@@ -1,7 +1,7 @@
-# KI-Cockpit V3.4 – Vollständige Technische Dokumentation
+# Asinito KI-Cockpit V3.4.2 – Vollständige Technische Dokumentation
 
-**Projektname:** KI-Cockpit
-**Version:** 3.4
+**Projektname:** Asinito KI-Cockpit (ehemals KI-Cockpit)
+**Version:** 3.4.2
 **Entwicklungszeitraum:** 1.–3. Februar 2026
 **Lead-Architekt:** Claude (Anthropic)
 **Assistenten:** Gemini (Google), ChatGPT (OpenAI)
@@ -144,7 +144,7 @@ Das Projekt wurde mit einem innovativen Multi-KI-Entwicklungsansatz realisiert:
 |------------|-------------|--------------|
 | Frontend-Hosting | GitHub Pages | Statisches Hosting, kostenlos |
 | Frontend-Sprache | Vanilla JavaScript | Kein Framework, direkte DOM-Manipulation |
-| Styling | CSS3 | Dark Theme, responsive |
+| Styling | CSS3 | Light Theme (Asinito CI), responsive |
 | Backend | Google Apps Script | Serverless, kostenlos |
 | Datenbank | Google Drive | JSON-Dateien in hierarchischer Ordnerstruktur |
 | AI-Engine | Gemini API | gemini-3-pro-preview |
@@ -862,6 +862,20 @@ function generateSessionMarkdown(session) {
 | | | - Gemini 3 pro preview fügt Text um JSON-Output hinzu |
 | | | - Fix: Regex-Extraktion `rawText.match(/\[\s*\{[\s\S]*\}\s*\]/)` |
 | | | - Explizite [OUTPUT]-Tags in Prompts |
+| **V3.4.1** | **03.02.2026** | **Asinito Corporate Identity Redesign** |
+| | | - Neues Branding: "Asinito" statt "KI-Cockpit" |
+| | | - Light Theme mit Corporate Colors (#ff6b36 Orange, #ffffff Background) |
+| | | - Inter Font Familie |
+| | | - Neuer Header mit Asinito Logo und Navigation |
+| | | - HTML-Struktur: Radio-Buttons → Select-Dropdowns für Kategorie/Projekt |
+| | | - DOMContentLoaded Handler komplett überarbeitet |
+| | | - generatePrompts() auf neue HTML-Struktur angepasst |
+| | | - Cache-Busting mit ?v= Parametern eingeführt |
+| **V3.4.2** | **03.02.2026** | **Project Dropdown Backend Response Fix** |
+| | | - Backend gibt `{geschäftlich: [...], privat: [...]}` Format zurück |
+| | | - updateProjectDropdown() korrigiert: `result.data[category]` statt `result.data.projects` |
+| | | - Projekt-Dropdown lädt jetzt korrekt existierende Projekte |
+| | | - Debug-Logging für Backend-Response hinzugefügt |
 
 ---
 
@@ -1001,4 +1015,5 @@ Falls eine andere KI dieses Projekt weiterentwickeln soll:
 ---
 
 *Dokumentation erstellt am 02.02.2026, aktualisiert am 03.02.2026 von Claude (Anthropic)*
+*Asinito Redesign und V3.4.2 Update am 03.02.2026*
 *Für Fragen: Kontext aus dieser README an eine neue KI übergeben*
