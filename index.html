@@ -3,20 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KI-Cockpit V2.1</title>
+    <title>Asinito - KI-Cockpit</title>
     <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" type="image/png" href="Asinito-Logo.png">
 </head>
 <body>
     <header>
-        <h1>KI-Cockpit V2.1</h1>
-        <div class="state-indicator">
-            <span class="state-dot" data-state="0"></span>
-            <span class="state-dot" data-state="1"></span>
-            <span class="state-dot" data-state="2"></span>
-            <span class="state-dot" data-state="3"></span>
-            <span class="state-dot" data-state="4"></span>
-            <span class="state-dot" data-state="5"></span>
+        <div class="header-left">
+            <a href="index.html">
+                <img src="Asinito-Logo.png" alt="Asinito" class="logo">
+            </a>
+            <div class="state-indicator">
+                <span class="state-dot" data-state="0"></span>
+                <span class="state-dot" data-state="1"></span>
+                <span class="state-dot" data-state="2"></span>
+                <span class="state-dot" data-state="3"></span>
+                <span class="state-dot" data-state="4"></span>
+                <span class="state-dot" data-state="5"></span>
+            </div>
         </div>
+        <nav class="header-nav">
+            <a href="index.html" class="nav-link active">Home</a>
+            <a href="archiv.html" class="nav-link">Archiv</a>
+        </nav>
     </header>
 
     <main>
@@ -25,6 +34,29 @@
             <div class="card">
                 <h2>Problem beschreiben</h2>
                 <p class="description">Beschreibe dein Problem oder deine Aufgabe so detailliert wie möglich.</p>
+
+                <div class="category-project-row">
+                    <div class="form-group">
+                        <label for="categorySelect">Kategorie</label>
+                        <select id="categorySelect" onchange="updateProjectDropdown()">
+                            <option value="privat">Privat</option>
+                            <option value="geschäftlich">Geschäftlich</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="projectSelect">Projekt</label>
+                        <select id="projectSelect">
+                            <option value="">Projekt wählen...</option>
+                            <option value="__new__">+ Neues Projekt erstellen</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group" id="newProjectGroup" style="display: none;">
+                    <label for="newProjectName">Neues Projekt</label>
+                    <input type="text" id="newProjectName" placeholder="Projektname eingeben...">
+                </div>
+
                 <div class="form-group">
                     <label for="sessionTitle">Session-Titel (für Archiv)</label>
                     <input type="text" id="sessionTitle" placeholder="z.B. Judopass Prüfung Susi" required>
@@ -44,7 +76,7 @@
                 </div>
             </div>
             <div class="actions">
-                <button class="btn btn-primary" onclick="generatePrompts()">Prompts generieren →</button>
+                <button class="btn btn-primary" onclick="generatePrompts()">Prompts generieren</button>
             </div>
         </section>
 
@@ -69,8 +101,8 @@
                 </button>
             </div>
             <div class="actions">
-                <button class="btn btn-secondary" onclick="prevState()">← Zurück</button>
-                <button class="btn btn-primary" onclick="nextState()">Weiter →</button>
+                <button class="btn btn-secondary" onclick="prevState()">Zurück</button>
+                <button class="btn btn-primary" onclick="nextState()">Weiter</button>
             </div>
         </section>
 
@@ -95,8 +127,8 @@
                 </div>
             </div>
             <div class="actions">
-                <button class="btn btn-secondary" onclick="prevState()">← Zurück</button>
-                <button class="btn btn-primary" onclick="analyzeQuestions()">Fragen analysieren →</button>
+                <button class="btn btn-secondary" onclick="prevState()">Zurück</button>
+                <button class="btn btn-primary" onclick="analyzeQuestions()">Fragen analysieren</button>
             </div>
         </section>
 
@@ -110,8 +142,8 @@
                 </div>
             </div>
             <div class="actions">
-                <button class="btn btn-secondary" onclick="prevState()">← Zurück</button>
-                <button class="btn btn-primary" onclick="generateSolvePrompts()">Solve-Prompts generieren →</button>
+                <button class="btn btn-secondary" onclick="prevState()">Zurück</button>
+                <button class="btn btn-primary" onclick="generateSolvePrompts()">Solve-Prompts generieren</button>
             </div>
         </section>
 
@@ -136,8 +168,8 @@
                 </button>
             </div>
             <div class="actions">
-                <button class="btn btn-secondary" onclick="prevState()">← Zurück</button>
-                <button class="btn btn-primary" onclick="nextState()">Weiter →</button>
+                <button class="btn btn-secondary" onclick="prevState()">Zurück</button>
+                <button class="btn btn-primary" onclick="nextState()">Weiter</button>
             </div>
         </section>
 
@@ -164,7 +196,7 @@
             <div class="card">
                 <h2>Synthese</h2>
                 <button class="btn btn-primary btn-large" onclick="startSynthesis()" id="synthesis-btn">
-                    🔮 Synthese starten
+                    Synthese starten
                 </button>
                 <div id="synthesis-result" class="synthesis-result hidden">
                     <h3>Synthesierte Lösung</h3>
@@ -172,15 +204,14 @@
                 </div>
             </div>
             <div class="actions">
-                <button class="btn btn-secondary" onclick="prevState()">← Zurück</button>
+                <button class="btn btn-secondary" onclick="prevState()">Zurück</button>
                 <button class="btn btn-primary" onclick="resetSession()">Neue Session</button>
             </div>
         </section>
     </main>
 
     <footer>
-        <button class="btn btn-footer" onclick="saveCurrentSession()">💾 Session speichern</button>
-        <button class="btn btn-footer" onclick="openArchive()">📂 Archiv laden</button>
+        <button class="btn btn-footer" onclick="saveCurrentSession()">Session speichern</button>
     </footer>
 
     <!-- Archive Modal -->
@@ -209,5 +240,21 @@
     <script src="js/parser.js"></script>
     <script src="js/storage.js"></script>
     <script src="js/app.js"></script>
+    <script>
+        // Initialize project dropdown on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            updateProjectDropdown();
+
+            // Show/hide new project input based on selection
+            document.getElementById('projectSelect').addEventListener('change', function() {
+                const newProjectGroup = document.getElementById('newProjectGroup');
+                if (this.value === '__new__') {
+                    newProjectGroup.style.display = 'block';
+                } else {
+                    newProjectGroup.style.display = 'none';
+                }
+            });
+        });
+    </script>
 </body>
 </html>

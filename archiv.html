@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asinito - Archiv</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" type="image/png" href="Asinito-Logo.png">
+</head>
+<body>
+    <header>
+        <div class="header-left">
+            <a href="index.html">
+                <img src="Asinito-Logo.png" alt="Asinito" class="logo">
+            </a>
+        </div>
+        <nav class="header-nav">
+            <a href="index.html" class="nav-link">Home</a>
+            <a href="archiv.html" class="nav-link active">Archiv</a>
+        </nav>
+    </header>
+
+    <main>
+        <h1 class="page-title">Session-Archiv</h1>
+
+        <!-- Filter Section -->
+        <div class="card">
+            <h2>Filter</h2>
+            <div class="category-project-row">
+                <div class="form-group">
+                    <label for="filterCategory">Kategorie</label>
+                    <select id="filterCategory" onchange="loadArchiveSessions()">
+                        <option value="">Alle Kategorien</option>
+                        <option value="privat">Privat</option>
+                        <option value="geschäftlich">Geschäftlich</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="filterProject">Projekt</label>
+                    <select id="filterProject" onchange="loadArchiveSessions()">
+                        <option value="">Alle Projekte</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sessions List -->
+        <div class="card">
+            <h2>Gespeicherte Sessions</h2>
+            <div id="sessions-list">
+                <div class="loading-text">Sessions werden geladen...</div>
+            </div>
+        </div>
+
+        <!-- Session Detail Modal -->
+        <div id="session-detail" class="card" style="display: none;">
+            <div class="session-header">
+                <h2 id="detail-title">Session Details</h2>
+                <button class="btn btn-secondary" onclick="closeSessionDetail()">Schließen</button>
+            </div>
+            <div id="detail-content">
+                <!-- Dynamically populated -->
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <button class="btn btn-footer" onclick="window.location.href='index.html'">Neue Session</button>
+    </footer>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast hidden"></div>
+
+    <script src="js/storage.js"></script>
+    <script>
+        const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbzdUdWbgjp0wofYk2M1Ui8FcaB10awsrgTzojOWaJS9jAXWzopQUdFBDxd0bu9D9z8p/exec';
+
+        let allSessions = [];
+
+        // Load sessions on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadArchiveSessions();
+            loadProjectFilter();
+        });
+
+        // Load project options for filter
+        async function loadProjectFilter() {
+            const category = document.getElementById('filterCategory').value;
+            const projectSelect = document.getElementById('filterProject');
+
+            projectSelect.innerHTML = '<option value="">Alle Projekte</option>';
+
+            if (!category) return;
+
+            try {
+                const response = await fetch(`${BACKEND_URL}?action=getProjects&category=${category}`);
+                const result = await response.json();
+
+                if (result.status === 'success' && result.data.projects) {
+                    result.data.projects.forEach(project => {
+                        const option = document.createElement('option');
+                        option.value = project;
+                        option.textContent = project;
+                        projectSelect.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading projects:', error);
+            }
+        }
+
+        // Load sessions from backend
+        async function loadArchiveSessions() {
+            const sessionsList = document.getElementById('sessions-list');
+            sessionsList.innerHTML = '<div class="loading-text">Sessions werden geladen...</div>';
+
+            // Update project filter when category changes
+            loadProjectFilter();
+
+            try {
+                const response = await fetch(`${BACKEND_URL}?action=listSessions`);
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    allSessions = result.data || [];
+                    renderSessions();
+                } else {
+                    sessionsList.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">Fehler beim Laden der Sessions</div></div>';
+                }
+            } catch (error) {
+                console.error('Error loading sessions:', error);
+                sessionsList.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><div class="empty-state-text">Verbindungsfehler</div></div>';
+            }
+        }
+
+        // Render sessions with filters
+        function renderSessions() {
+            const sessionsList = document.getElementById('sessions-list');
+            const categoryFilter = document.getElementById('filterCategory').value;
+            const projectFilter = document.getElementById('filterProject').value;
+
+            let filtered = allSessions;
+
+            if (categoryFilter) {
+                filtered = filtered.filter(s => s.category === categoryFilter || s.folder === categoryFilter);
+            }
+
+            if (projectFilter) {
+                filtered = filtered.filter(s => s.project === projectFilter);
+            }
+
+            if (filtered.length === 0) {
+                sessionsList.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">Keine Sessions gefunden</div></div>';
+                return;
+            }
+
+            // Group by category/project
+            const grouped = {};
+            filtered.forEach(session => {
+                const category = session.category || session.folder || 'Unbekannt';
+                const project = session.project || 'Allgemein';
+                const key = `${category} / ${project}`;
+
+                if (!grouped[key]) {
+                    grouped[key] = [];
+                }
+                grouped[key].push(session);
+            });
+
+            let html = '';
+            Object.keys(grouped).sort().forEach(group => {
+                html += `<h3 style="margin: 1.5rem 0 0.75rem; color: var(--primary); font-size: 0.9rem;">${group}</h3>`;
+
+                grouped[group].forEach(session => {
+                    const title = session.displayTitle || session.name || 'Unbenannte Session';
+                    const date = session.timestamp || new Date(session.date).toLocaleDateString('de-DE');
+
+                    html += `
+                        <div class="session-item" onclick="loadSession('${session.id}')">
+                            <div class="session-date">${date}</div>
+                            <div class="session-preview">${title}</div>
+                        </div>
+                    `;
+                });
+            });
+
+            sessionsList.innerHTML = html;
+        }
+
+        // Load single session details
+        async function loadSession(id) {
+            try {
+                const response = await fetch(`${BACKEND_URL}?action=getSession&id=${id}`);
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    showSessionDetail(result.data);
+                } else {
+                    showToast('Fehler beim Laden der Session', 'error');
+                }
+            } catch (error) {
+                console.error('Error loading session:', error);
+                showToast('Verbindungsfehler', 'error');
+            }
+        }
+
+        // Display session details
+        function showSessionDetail(session) {
+            const data = session.data || session;
+            const detailSection = document.getElementById('session-detail');
+            const detailTitle = document.getElementById('detail-title');
+            const detailContent = document.getElementById('detail-content');
+
+            detailTitle.textContent = data.name || data.title || 'Session Details';
+
+            let html = '';
+
+            // Problem
+            html += `
+                <div class="session-section">
+                    <h3>Problemstellung</h3>
+                    <div class="session-content">${data.problem || 'Keine Problemstellung'}</div>
+                </div>
+            `;
+
+            // Q&A
+            const questions = data.deduplicatedQuestions || [];
+            const answers = data.answers || [];
+
+            if (questions.length > 0) {
+                html += `<div class="session-section"><h3>Fragen & Antworten</h3><div class="qa-list">`;
+
+                questions.forEach((q, i) => {
+                    const questionText = typeof q === 'string' ? q : (q.question || 'Frage');
+                    const answer = answers[i] || '-';
+
+                    html += `
+                        <div class="qa-item">
+                            <div class="question"><strong>F:</strong> ${questionText}</div>
+                            <div class="answer"><strong>A:</strong> ${answer}</div>
+                        </div>
+                    `;
+                });
+
+                html += `</div></div>`;
+            }
+
+            // KI Solutions
+            const phase2 = data.phase2Outputs || {};
+            if (phase2.chatgpt || phase2.claude || phase2.gemini) {
+                html += `
+                    <div class="session-section">
+                        <h3>KI-Lösungen</h3>
+                        <div class="ki-solutions-tabs">
+                            <button class="tab-btn active" onclick="showSolution('chatgpt', this)">ChatGPT</button>
+                            <button class="tab-btn" onclick="showSolution('claude', this)">Claude</button>
+                            <button class="tab-btn" onclick="showSolution('gemini', this)">Gemini</button>
+                        </div>
+                        <div class="solution-content" id="solution-content">
+                            ${phase2.chatgpt || 'Keine Lösung vorhanden'}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Store solutions for tab switching
+            window.currentSolutions = phase2;
+
+            // Synthesis
+            const synthesis = extractSynthesisText(data.synthesis);
+            html += `
+                <div class="session-section">
+                    <h3>Synthese</h3>
+                    <div class="session-content synthesis-formatted">${formatMarkdown(synthesis)}</div>
+                </div>
+            `;
+
+            // Actions
+            html += `
+                <div class="session-actions">
+                    <button class="btn btn-primary btn-export" onclick="exportSession()">Als Markdown exportieren</button>
+                    <button class="btn btn-secondary" onclick="deleteSession('${session.id || data.id}')">Löschen</button>
+                </div>
+            `;
+
+            // Store current session for export
+            window.currentSessionData = data;
+
+            detailContent.innerHTML = html;
+            detailSection.style.display = 'block';
+            detailSection.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Show solution tab
+        function showSolution(ai, btn) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            const content = document.getElementById('solution-content');
+            content.textContent = window.currentSolutions[ai] || 'Keine Lösung vorhanden';
+        }
+
+        // Close session detail
+        function closeSessionDetail() {
+            document.getElementById('session-detail').style.display = 'none';
+        }
+
+        // Delete session (soft delete)
+        async function deleteSession(id) {
+            if (!confirm('Session wirklich in den Papierkorb verschieben?')) return;
+
+            try {
+                const response = await fetch(BACKEND_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify({ action: 'deleteSession', id: id })
+                });
+
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    showToast('Session in Papierkorb verschoben', 'success');
+                    closeSessionDetail();
+                    loadArchiveSessions();
+                } else {
+                    showToast('Fehler beim Löschen', 'error');
+                }
+            } catch (error) {
+                console.error('Error deleting session:', error);
+                showToast('Verbindungsfehler', 'error');
+            }
+        }
+
+        // Export session as Markdown
+        function exportSession() {
+            if (!window.currentSessionData) return;
+
+            const md = generateSessionMarkdown(window.currentSessionData);
+            const title = window.currentSessionData.name || window.currentSessionData.title || 'session';
+            const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').substring(0, 40);
+
+            const bom = '\uFEFF';
+            const blob = new Blob([bom + md], { type: 'text/markdown;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${slug}.md`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showToast('Markdown exportiert', 'success');
+        }
+
+        // Helper: Extract synthesis text
+        function extractSynthesisText(synthesis) {
+            if (!synthesis) return 'Keine Synthese vorhanden';
+
+            if (typeof synthesis === 'string') {
+                try {
+                    const parsed = JSON.parse(synthesis);
+                    if (parsed.data && parsed.data.synthesis) return parsed.data.synthesis;
+                    if (parsed.synthesis) return parsed.synthesis;
+                } catch (e) {
+                    return synthesis;
+                }
+                return synthesis;
+            }
+
+            if (typeof synthesis === 'object') {
+                if (synthesis.data && synthesis.data.synthesis) return synthesis.data.synthesis;
+                if (synthesis.synthesis) return synthesis.synthesis;
+                if (synthesis.text) return synthesis.text;
+                return JSON.stringify(synthesis, null, 2);
+            }
+
+            return String(synthesis);
+        }
+
+        // Helper: Format markdown to HTML
+        function formatMarkdown(input) {
+            let text = '';
+            if (typeof input === 'string') {
+                text = input;
+            } else if (input == null) {
+                text = '';
+            } else if (typeof input === 'object') {
+                if (typeof input.synthesis === 'string') text = input.synthesis;
+                else if (typeof input.text === 'string') text = input.text;
+                else text = JSON.stringify(input, null, 2);
+            } else {
+                text = String(input);
+            }
+
+            text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+            text = text
+                .replace(/^###\s+(.+)$/gm, '<h4>$1</h4>')
+                .replace(/^##\s+(.+)$/gm, '<h3>$1</h3>')
+                .replace(/^#\s+(.+)$/gm, '<h2>$1</h2>');
+
+            text = text
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.+?)\*/g, '<em>$1</em>');
+
+            text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+            text = text
+                .split(/\n{2,}/)
+                .map(para => `<p>${para.replace(/\n/g, '<br>')}</p>`)
+                .join('');
+
+            return text;
+        }
+
+        // Helper: Generate markdown for export
+        function generateSessionMarkdown(data) {
+            const title = data.name || data.title || 'Session';
+            const date = new Date(data.createdAt || Date.now()).toLocaleDateString('de-DE');
+            const problem = data.problem || 'Kein Problem';
+            const synthesisText = extractSynthesisText(data.synthesis);
+
+            let md = `# ${title}\n`;
+            md += `**Datum:** ${date}\n\n`;
+            md += `---\n\n`;
+
+            md += `## Problemstellung\n\n${problem}\n\n`;
+
+            md += `## Fragen & Antworten\n\n`;
+            const questions = data.deduplicatedQuestions || [];
+            const answers = data.answers || [];
+
+            if (questions.length > 0) {
+                questions.forEach((q, i) => {
+                    const questionText = typeof q === 'string' ? q : (q.question || 'Frage');
+                    const answer = answers[i] || '-';
+                    md += `### Frage ${i+1}\n`;
+                    md += `**${questionText}**\n\n`;
+                    md += `*Antwort:* ${answer}\n\n`;
+                });
+            }
+
+            const phase2 = data.phase2Outputs || {};
+            md += `## KI-Lösungen\n\n`;
+            md += `### ChatGPT\n${phase2.chatgpt || 'Nicht vorhanden'}\n\n`;
+            md += `### Claude\n${phase2.claude || 'Nicht vorhanden'}\n\n`;
+            md += `### Gemini\n${phase2.gemini || 'Nicht vorhanden'}\n\n`;
+
+            md += `## Synthese\n\n${synthesisText}\n\n`;
+
+            md += `---\n*Exportiert aus Asinito*\n`;
+
+            return md;
+        }
+
+        // Toast notification
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type}`;
+            toast.classList.remove('hidden');
+
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
