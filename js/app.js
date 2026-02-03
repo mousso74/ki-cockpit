@@ -388,10 +388,12 @@ async function analyzeQuestions() {
         });
 
         if (result.status === 'success' && result.data) {
-            displayDeduplicatedQuestions(result.data);
-            session.deduplicatedQuestions = result.data;
-            window.deduplicatedQuestions = result.data;
-            showToast(`${result.data.length} deduplizierte Fragen gefunden!`, 'success');
+            // Backend gibt { questions: [...] } zurück, also extrahieren wir das Array
+            const questions = result.data.questions || result.data;
+            displayDeduplicatedQuestions(questions);
+            session.deduplicatedQuestions = questions;
+            window.deduplicatedQuestions = questions;
+            showToast(`${questions.length} deduplizierte Fragen gefunden!`, 'success');
         } else {
             // Fallback to local deduplication
             console.log('[app.js] API deduplication failed, using fallback');
