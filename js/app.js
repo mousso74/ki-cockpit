@@ -929,9 +929,17 @@ async function saveCurrentSession() {
     const titleSlug = makeTitleSlug(titleFromUi);
 
     // Get category and project (V3.0)
-    const categorySelected = document.querySelector('input[name="category"]:checked');
-    const category = categorySelected?.value || session.category || 'privat';
-    const project = document.getElementById('projectSelect')?.value || session.project || 'Allgemein';
+    const categorySelect = document.getElementById('categorySelect');
+    const category = categorySelect?.value || session.category || 'privat';
+
+    // Check if user selected "new project" and entered a name
+    const projectSelect = document.getElementById('projectSelect');
+    let project = projectSelect?.value || session.project || 'Allgemein';
+
+    if (project === '__new__') {
+        const newProjectName = document.getElementById('newProjectName')?.value?.trim();
+        project = newProjectName || 'Allgemein';
+    }
 
     // Store name and titleSlug BEFORE saving
     session.name = titleFromUi;
