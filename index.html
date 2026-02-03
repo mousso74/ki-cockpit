@@ -236,81 +236,9 @@
     <!-- Archive Modal (Simple) -->
     <div id="archiveModal" class="modal" style="display:none;"></div>
 
-    <script src="js/prompts.js"></script>
-    <script src="js/parser.js"></script>
-    <script src="js/storage.js"></script>
-    <script src="js/app.js"></script>
-    <script>
-        // Override updateProjectDropdown to work with our HTML structure
-        async function updateProjectDropdown() {
-            const categorySelect = document.getElementById('categorySelect');
-            const projectSelect = document.getElementById('projectSelect');
-            const newProjectGroup = document.getElementById('newProjectGroup');
-
-            const category = categorySelect.value;
-            console.log('[index.html] Updating projects for category:', category);
-
-            // Clear and rebuild options
-            projectSelect.innerHTML = '<option value="">Projekt wählen...</option>';
-
-            // Load projects from backend
-            try {
-                const response = await fetch(`${BACKEND_URL}?action=getProjects&category=${category}`);
-                const result = await response.json();
-
-                if (result.status === 'success' && result.data) {
-                    // Backend returns { geschäftlich: [...], privat: [...] }
-                    const projects = result.data[category] || [];
-                    console.log('[index.html] Loaded projects:', projects);
-
-                    projects.forEach(projectName => {
-                        const option = document.createElement('option');
-                        option.value = projectName;
-                        option.textContent = projectName;
-                        projectSelect.appendChild(option);
-                    });
-                }
-            } catch (error) {
-                console.error('[index.html] Error loading projects:', error);
-            }
-
-            // Add "new project" option at the end
-            const newOption = document.createElement('option');
-            newOption.value = '__new__';
-            newOption.textContent = '+ Neues Projekt erstellen';
-            projectSelect.appendChild(newOption);
-
-            // Hide new project input
-            newProjectGroup.style.display = 'none';
-        }
-
-        // Initialize on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            // Load projects for initial category
-            updateProjectDropdown();
-
-            // Show/hide new project input based on selection
-            document.getElementById('projectSelect').addEventListener('change', function() {
-                const newProjectGroup = document.getElementById('newProjectGroup');
-                if (this.value === '__new__') {
-                    newProjectGroup.style.display = 'block';
-                    document.getElementById('newProjectName').focus();
-                } else {
-                    newProjectGroup.style.display = 'none';
-                }
-                // Update session object
-                if (typeof session !== 'undefined' && this.value !== '__new__') {
-                    session.project = this.value;
-                }
-            });
-
-            // Category change handler
-            document.getElementById('categorySelect').addEventListener('change', function() {
-                if (typeof session !== 'undefined') {
-                    session.category = this.value;
-                }
-            });
-        });
-    </script>
+    <script src="js/prompts.js?v=3.4.1"></script>
+    <script src="js/parser.js?v=3.4.1"></script>
+    <script src="js/storage.js?v=3.4.1"></script>
+    <script src="js/app.js?v=3.4.1"></script>
 </body>
 </html>

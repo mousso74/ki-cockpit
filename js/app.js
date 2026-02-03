@@ -45,24 +45,24 @@ let session = {
 // ========================================
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('[app.js] KI-Cockpit V3.0 initialized');
+    console.log('[app.js] Asinito KI-Cockpit V3.4 initialized');
     showState(0);
 
     // Update usage display
     updateUsageDisplay();
 
-    // Load available projects from backend
-    loadProjects();
+    // Load projects on startup
+    updateProjectDropdown();
 
-    // Category selection handling
-    document.querySelectorAll('input[name="category"]').forEach(input => {
-        input.addEventListener('change', (e) => {
-            const category = e.target.value;
-            session.category = category;
-            console.log('[app.js] Category selected:', category);
-            updateProjectDropdown(category);
+    // Category selection handling (select dropdown)
+    const categorySelect = document.getElementById('categorySelect');
+    if (categorySelect) {
+        categorySelect.addEventListener('change', (e) => {
+            session.category = e.target.value;
+            console.log('[app.js] Category selected:', session.category);
+            updateProjectDropdown();
         });
-    });
+    }
 
     // Template selection handling
     document.querySelectorAll('.template-option input').forEach(input => {
@@ -77,28 +77,75 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Project dropdown change handling
-    document.getElementById('projectSelect').addEventListener('change', (e) => {
-        session.project = e.target.value;
-        console.log('[app.js] Project selected:', session.project);
-    });
+    const projectSelect = document.getElementById('projectSelect');
+    if (projectSelect) {
+        projectSelect.addEventListener('change', (e) => {
+            const newProjectGroup = document.getElementById('newProjectGroup');
+            if (e.target.value === '__new__') {
+                // Show new project input
+                if (newProjectGroup) {
+                    newProjectGroup.style.display = 'block';
+                    document.getElementById('newProjectName')?.focus();
+                }
+            } else {
+                // Hide new project input and set project
+                if (newProjectGroup) {
+                    newProjectGroup.style.display = 'none';
+                }
+                session.project = e.target.value;
+                console.log('[app.js] Project selected:', session.project);
+            }
+        });
+    }
 });
 
 // ========================================
-// Project Management (V3.0)
+// Project Management (V3.4)
 // ========================================
 
 /**
- * Loads available projects from backend
+ * Updates the project dropdown based on selected category
+ * Loads existing projects from backend and adds "new project" option
  */
-async function loadProjects() {
-    console.log('[app.js] Loading projects from backend');
+async function updateProjectDropdown() {
+    const categorySelect = document.getElementById('categorySelect');
+    const projectSelect = document.getElementById('projectSelect');
+    const newProjectGroup = document.getElementById('newProjectGroup');
+
+    if (!categorySelect || !projectSelect) {
+        console.warn('[app.js] Category or project select not found');
+        return;
+    }
+
+    const category = categorySelect.value;
+    console.log('[app.js] Updating project dropdown for category:', category);
+
+    // Reset dropdown
+    projectSelect.innerHTML = '<option value="">Projekt wählen...</option>';
+    projectSelect.innerHTML += '<option value="__new__">+ Neues Projekt erstellen</option>';
+
+    // Hide new project input
+    if (newProjectGroup) {
+        newProjectGroup.style.display = 'none';
+    }
+
     try {
-        const response = await fetch(BACKEND_URL + '?action=getProjects');
+        // Load projects from backend
+        const response = await fetch(`${BACKEND_URL}?action=getProjects&category=${category}`);
         const result = await response.json();
 
-        if (result.status === 'success' && result.data) {
-            availableProjects = result.data;
-            console.log('[app.js] Projects loaded:', availableProjects);
+        if (result.status === 'success' && result.data && result.data.projects) {
+            const projects = result.data.projects;
+            console.log('[app.js] Loaded projects:', projects);
+
+            projects.forEach(projectName => {
+                const option = document.createElement('option');
+                option.value = projectName;
+                option.textContent = projectName;
+                projectSelect.appendChild(option);
+            });
+
+            console.log('[app.js] Dropdown updated with', projects.length, 'projects for', category);
         }
     } catch (error) {
         console.error('[app.js] Error loading projects:', error);
@@ -106,51 +153,16 @@ async function loadProjects() {
 }
 
 /**
- * Updates the project dropdown based on selected category
- * @param {string} category - 'geschäftlich' or 'privat'
- */
-function updateProjectDropdown(category) {
-    const select = document.getElementById('projectSelect');
-    const newProjectBtn = document.getElementById('newProjectBtn');
-
-    // Enable dropdown and button
-    select.disabled = false;
-    newProjectBtn.disabled = false;
-
-    // Clear existing options
-    select.innerHTML = '';
-
-    // Add placeholder
-    const placeholder = document.createElement('option');
-    placeholder.value = '';
-    placeholder.textContent = '-- Projekt auswählen --';
-    select.appendChild(placeholder);
-
-    // Add existing projects for this category
-    const projects = availableProjects[category] || [];
-    projects.forEach(projectName => {
-        const option = document.createElement('option');
-        option.value = projectName;
-        option.textContent = projectName;
-        select.appendChild(option);
-    });
-
-    console.log('[app.js] Dropdown updated with', projects.length, 'projects for', category);
-}
-
-/**
- * Shows the new project input field
- */
-function showNewProjectInput() {
-    document.getElementById('newProjectContainer').classList.remove('hidden');
-    document.getElementById('newProjectName').focus();
-}
-
-/**
- * Confirms and adds a new project
+ * Confirms new project from input field
+ * Called when user enters a new project name
  */
 function confirmNewProject() {
     const input = document.getElementById('newProjectName');
+    const projectSelect = document.getElementById('projectSelect');
+    const newProjectGroup = document.getElementById('newProjectGroup');
+
+    if (!input) return;
+
     const projectName = input.value.trim();
 
     if (!projectName) {
@@ -159,34 +171,23 @@ function confirmNewProject() {
     }
 
     // Add to dropdown
-    const select = document.getElementById('projectSelect');
     const option = document.createElement('option');
     option.value = projectName;
     option.textContent = projectName;
-    select.appendChild(option);
+    projectSelect.appendChild(option);
 
     // Select the new project
-    select.value = projectName;
+    projectSelect.value = projectName;
     session.project = projectName;
 
-    // Add to local cache (will be saved to backend when session is saved)
-    if (session.category && !availableProjects[session.category].includes(projectName)) {
-        availableProjects[session.category].push(projectName);
-    }
-
     // Hide input and clear
-    cancelNewProject();
+    if (newProjectGroup) {
+        newProjectGroup.style.display = 'none';
+    }
+    input.value = '';
 
     showToast('Projekt "' + projectName + '" hinzugefügt', 'success');
     console.log('[app.js] New project added:', projectName);
-}
-
-/**
- * Cancels new project input
- */
-function cancelNewProject() {
-    document.getElementById('newProjectContainer').classList.add('hidden');
-    document.getElementById('newProjectName').value = '';
 }
 
 // ========================================
@@ -257,18 +258,34 @@ function prevState() {
  * Generates the Phase 1 prompts
  */
 function generatePrompts() {
-    // Validate required fields (V3.0)
-    const categorySelected = document.querySelector('input[name="category"]:checked');
-    if (!categorySelected) {
+    // Validate required fields (V3.4)
+    const categorySelect = document.getElementById('categorySelect');
+    console.log('[app.js] generatePrompts - categorySelect:', categorySelect, 'value:', categorySelect?.value);
+
+    if (!categorySelect || !categorySelect.value) {
         showToast('Bitte wähle eine Kategorie (Geschäftlich/Privat).', 'error');
         return;
     }
+    session.category = categorySelect.value;
 
     const projectSelect = document.getElementById('projectSelect');
-    if (!projectSelect.value) {
+    const projectValue = projectSelect ? projectSelect.value : '';
+
+    // Check if "new project" is selected
+    if (projectValue === '__new__') {
+        const newProjectName = document.getElementById('newProjectName');
+        if (!newProjectName || !newProjectName.value.trim()) {
+            showToast('Bitte gib einen Projektnamen ein.', 'error');
+            if (newProjectName) newProjectName.focus();
+            return;
+        }
+        session.project = newProjectName.value.trim();
+    } else if (!projectValue) {
         showToast('Bitte wähle ein Projekt aus oder erstelle ein neues.', 'error');
-        projectSelect.focus();
+        if (projectSelect) projectSelect.focus();
         return;
+    } else {
+        session.project = projectValue;
     }
 
     const sessionTitle = document.getElementById('sessionTitle').value.trim();
@@ -289,9 +306,7 @@ function generatePrompts() {
 
     console.log('[app.js] Generating Phase 1 prompts');
 
-    // Save to session (V3.0: including category and project)
-    session.category = categorySelected.value;
-    session.project = projectSelect.value;
+    // Save to session (V3.4: category and project already set above)
     session.problem = problemText;
 
     // Generate prompt
@@ -1398,13 +1413,18 @@ function resetSession() {
         synthesis: null
     };
 
-    // Reset UI (V3.0: including category and project fields)
-    document.querySelectorAll('input[name="category"]').forEach(r => r.checked = false);
-    document.getElementById('projectSelect').innerHTML = '<option value="">-- Erst Kategorie wählen --</option>';
-    document.getElementById('projectSelect').disabled = true;
-    document.getElementById('newProjectBtn').disabled = true;
-    document.getElementById('newProjectContainer').classList.add('hidden');
-    document.getElementById('newProjectName').value = '';
+    // Reset UI (V3.4: using select dropdowns)
+    const categorySelect = document.getElementById('categorySelect');
+    if (categorySelect) categorySelect.value = 'privat';
+
+    const newProjectGroup = document.getElementById('newProjectGroup');
+    if (newProjectGroup) newProjectGroup.style.display = 'none';
+
+    const newProjectName = document.getElementById('newProjectName');
+    if (newProjectName) newProjectName.value = '';
+
+    // Reload projects for default category
+    updateProjectDropdown();
     document.getElementById('sessionTitle').value = '';
     document.getElementById('problem-input').value = '';
     document.getElementById('phase1-prompt').textContent = '';
