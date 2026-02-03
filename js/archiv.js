@@ -275,7 +275,10 @@ async function openSession(sessionId) {
     document.getElementById('modalProblem').textContent = '';
 
     try {
+        // Session vom Backend laden (getSession aus storage.js)
+        console.log('[archiv.js] Lade Session von Backend...');
         const result = await getSession(sessionId);
+        console.log('[archiv.js] Backend Antwort:', result);
 
         if (result.status === 'success' && result.data) {
             const session = result.data;
