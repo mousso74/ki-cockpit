@@ -91,7 +91,7 @@ async function synthesize(problem, responses) {
             body: JSON.stringify({
                 action: 'synthesize',
                 problem: problem,
-                responses: responses
+                solutions: responses  // Backend V3.1 erwartet 'solutions', nicht 'responses'
             })
         });
 
