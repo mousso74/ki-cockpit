@@ -1,5 +1,5 @@
 /* ========================================
-   KI-Cockpit V2.1 - Main Application
+   KI-Cockpit V3.0 - Main Application
    ======================================== */
 
 // ========================================
@@ -9,11 +9,19 @@
 let currentState = 0;
 const MAX_STATE = 5;
 
+// Available projects cache (loaded from backend)
+let availableProjects = {
+    'geschäftlich': [],
+    'privat': []
+};
+
 // Session object to collect all data
 let session = {
     id: generateSessionId(),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    category: '',      // NEU: 'geschäftlich' oder 'privat'
+    project: '',       // NEU: Projektname
     problem: '',
     template: 'questions',
     phase1Prompt: '',
@@ -37,11 +45,24 @@ let session = {
 // ========================================
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('[app.js] KI-Cockpit V2.1 initialized');
+    console.log('[app.js] KI-Cockpit V3.0 initialized');
     showState(0);
 
     // Update usage display
     updateUsageDisplay();
+
+    // Load available projects from backend
+    loadProjects();
+
+    // Category selection handling
+    document.querySelectorAll('input[name="category"]').forEach(input => {
+        input.addEventListener('change', (e) => {
+            const category = e.target.value;
+            session.category = category;
+            console.log('[app.js] Category selected:', category);
+            updateProjectDropdown(category);
+        });
+    });
 
     // Template selection handling
     document.querySelectorAll('.template-option input').forEach(input => {
@@ -54,7 +75,119 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('[app.js] Template selected:', session.template);
         });
     });
+
+    // Project dropdown change handling
+    document.getElementById('projectSelect').addEventListener('change', (e) => {
+        session.project = e.target.value;
+        console.log('[app.js] Project selected:', session.project);
+    });
 });
+
+// ========================================
+// Project Management (V3.0)
+// ========================================
+
+/**
+ * Loads available projects from backend
+ */
+async function loadProjects() {
+    console.log('[app.js] Loading projects from backend');
+    try {
+        const response = await fetch(BACKEND_URL + '?action=getProjects');
+        const result = await response.json();
+
+        if (result.status === 'success' && result.data) {
+            availableProjects = result.data;
+            console.log('[app.js] Projects loaded:', availableProjects);
+        }
+    } catch (error) {
+        console.error('[app.js] Error loading projects:', error);
+    }
+}
+
+/**
+ * Updates the project dropdown based on selected category
+ * @param {string} category - 'geschäftlich' or 'privat'
+ */
+function updateProjectDropdown(category) {
+    const select = document.getElementById('projectSelect');
+    const newProjectBtn = document.getElementById('newProjectBtn');
+
+    // Enable dropdown and button
+    select.disabled = false;
+    newProjectBtn.disabled = false;
+
+    // Clear existing options
+    select.innerHTML = '';
+
+    // Add placeholder
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = '-- Projekt auswählen --';
+    select.appendChild(placeholder);
+
+    // Add existing projects for this category
+    const projects = availableProjects[category] || [];
+    projects.forEach(projectName => {
+        const option = document.createElement('option');
+        option.value = projectName;
+        option.textContent = projectName;
+        select.appendChild(option);
+    });
+
+    console.log('[app.js] Dropdown updated with', projects.length, 'projects for', category);
+}
+
+/**
+ * Shows the new project input field
+ */
+function showNewProjectInput() {
+    document.getElementById('newProjectContainer').classList.remove('hidden');
+    document.getElementById('newProjectName').focus();
+}
+
+/**
+ * Confirms and adds a new project
+ */
+function confirmNewProject() {
+    const input = document.getElementById('newProjectName');
+    const projectName = input.value.trim();
+
+    if (!projectName) {
+        showToast('Bitte Projektnamen eingeben', 'error');
+        return;
+    }
+
+    // Add to dropdown
+    const select = document.getElementById('projectSelect');
+    const option = document.createElement('option');
+    option.value = projectName;
+    option.textContent = projectName;
+    select.appendChild(option);
+
+    // Select the new project
+    select.value = projectName;
+    session.project = projectName;
+
+    // Add to local cache (will be saved to backend when session is saved)
+    if (session.category && !availableProjects[session.category].includes(projectName)) {
+        availableProjects[session.category].push(projectName);
+    }
+
+    // Hide input and clear
+    cancelNewProject();
+
+    showToast('Projekt "' + projectName + '" hinzugefügt', 'success');
+    console.log('[app.js] New project added:', projectName);
+}
+
+/**
+ * Cancels new project input
+ */
+function cancelNewProject() {
+    document.getElementById('newProjectContainer').classList.add('hidden');
+    document.getElementById('newProjectName').value = '';
+}
 
 // ========================================
 // State Navigation
@@ -124,6 +257,27 @@ function prevState() {
  * Generates the Phase 1 prompts
  */
 function generatePrompts() {
+    // Validate required fields (V3.0)
+    const categorySelected = document.querySelector('input[name="category"]:checked');
+    if (!categorySelected) {
+        showToast('Bitte wähle eine Kategorie (Geschäftlich/Privat).', 'error');
+        return;
+    }
+
+    const projectSelect = document.getElementById('projectSelect');
+    if (!projectSelect.value) {
+        showToast('Bitte wähle ein Projekt aus oder erstelle ein neues.', 'error');
+        projectSelect.focus();
+        return;
+    }
+
+    const sessionTitle = document.getElementById('sessionTitle').value.trim();
+    if (!sessionTitle) {
+        showToast('Bitte gib einen Session-Titel ein.', 'error');
+        document.getElementById('sessionTitle').focus();
+        return;
+    }
+
     const problemInput = document.getElementById('problem-input');
     const problemText = problemInput.value.trim();
 
@@ -135,7 +289,9 @@ function generatePrompts() {
 
     console.log('[app.js] Generating Phase 1 prompts');
 
-    // Save to session
+    // Save to session (V3.0: including category and project)
+    session.category = categorySelected.value;
+    session.project = projectSelect.value;
     session.problem = problemText;
 
     // Generate prompt
@@ -232,10 +388,14 @@ async function analyzeQuestions() {
         });
 
         if (result.status === 'success' && result.data) {
-            displayDeduplicatedQuestions(result.data);
-            session.deduplicatedQuestions = result.data;
-            window.deduplicatedQuestions = result.data;
-            showToast(`${result.data.length} deduplizierte Fragen gefunden!`, 'success');
+            // Backend V3.1 gibt direkt das Array in result.data zurück
+            // Fallback auf result.data.questions falls altes Format
+            const questions = Array.isArray(result.data) ? result.data : (result.data.questions || result.data);
+            console.log('[app.js] Deduplicated questions received:', questions.length);
+            displayDeduplicatedQuestions(questions);
+            session.deduplicatedQuestions = questions;
+            window.deduplicatedQuestions = questions;
+            showToast(`${questions.length} deduplizierte Fragen gefunden!`, 'success');
         } else {
             // Fallback to local deduplication
             console.log('[app.js] API deduplication failed, using fallback');
@@ -762,15 +922,22 @@ function openAsEmail() {
  * Saves the current session with all data
  */
 async function saveCurrentSession() {
-    console.log('[app.js] Saving current session');
+    console.log('[app.js] Saving current session (V3.0)');
 
     // Get title and create slug using helper function
     const titleFromUi = document.getElementById('sessionTitle')?.value || 'Session';
     const titleSlug = makeTitleSlug(titleFromUi);
 
+    // Get category and project (V3.0)
+    const categorySelected = document.querySelector('input[name="category"]:checked');
+    const category = categorySelected?.value || session.category || 'privat';
+    const project = document.getElementById('projectSelect')?.value || session.project || 'Allgemein';
+
     // Store name and titleSlug BEFORE saving
     session.name = titleFromUi;
     session.titleSlug = titleSlug;
+    session.category = category;
+    session.project = project;
 
     // Collect all answers from the question textareas
     const answers = [];
@@ -795,9 +962,11 @@ async function saveCurrentSession() {
         gemini: document.getElementById('gemini-solution')?.value || ''
     };
 
-    // Update session object with all data
+    // Update session object with all data (V3.0: including category and project)
     session.title = titleFromUi;
     session.titleSlug = titleSlug;
+    session.category = category;
+    session.project = project;
     session.problem = document.getElementById('problem-input')?.value || session.problem;
     session.phase1Outputs = phase1Outputs;
     session.answers = answers;
@@ -806,6 +975,8 @@ async function saveCurrentSession() {
     if (!session.createdAt) {
         session.createdAt = session.updatedAt;
     }
+
+    console.log('[app.js] Saving to:', category, '/', project, '/', titleSlug);
 
     try {
         await saveSession(session);
@@ -1192,13 +1363,15 @@ async function loadSession(sessionId) {
  * Resets the session to start fresh
  */
 function resetSession() {
-    console.log('[app.js] Resetting session');
+    console.log('[app.js] Resetting session (V3.0)');
 
-    // Create new session
+    // Create new session (V3.0: including category and project)
     session = {
         id: generateSessionId(),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+        category: '',
+        project: '',
         problem: '',
         template: 'questions',
         phase1Prompt: '',
@@ -1217,7 +1390,14 @@ function resetSession() {
         synthesis: null
     };
 
-    // Reset UI
+    // Reset UI (V3.0: including category and project fields)
+    document.querySelectorAll('input[name="category"]').forEach(r => r.checked = false);
+    document.getElementById('projectSelect').innerHTML = '<option value="">-- Erst Kategorie wählen --</option>';
+    document.getElementById('projectSelect').disabled = true;
+    document.getElementById('newProjectBtn').disabled = true;
+    document.getElementById('newProjectContainer').classList.add('hidden');
+    document.getElementById('newProjectName').value = '';
+    document.getElementById('sessionTitle').value = '';
     document.getElementById('problem-input').value = '';
     document.getElementById('phase1-prompt').textContent = '';
     document.getElementById('chatgpt-questions').value = '';

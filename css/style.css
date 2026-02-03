@@ -113,6 +113,27 @@ header {
     border-bottom-color: var(--primary);
 }
 
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.nav-link {
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.9rem;
+    padding: 0.5rem 1rem;
+    border-radius: var(--border-radius);
+    background: rgba(255, 255, 255, 0.05);
+    transition: var(--transition);
+}
+
+.nav-link:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.1);
+}
+
 .state-indicator {
     display: flex;
     gap: 8px;
@@ -1249,4 +1270,103 @@ footer {
 
 .empty-state-text {
     font-size: 1rem;
+}
+
+/* ========================================
+   Category Selection (V3.0)
+   ======================================== */
+
+.category-selection {
+    display: flex;
+    gap: 1rem;
+}
+
+.category-option {
+    flex: 1;
+    cursor: pointer;
+}
+
+.category-option input[type="radio"] {
+    display: none;
+}
+
+.category-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--border-radius);
+    transition: var(--transition);
+}
+
+.category-option input[type="radio"]:checked + .category-card {
+    border-color: var(--accent);
+    background: rgba(233, 69, 96, 0.1);
+}
+
+.category-option:hover .category-card {
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.category-icon {
+    font-size: 2rem;
+}
+
+/* ========================================
+   Project Selection (V3.0)
+   ======================================== */
+
+.project-selection {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.project-selection select {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 1rem;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.project-selection select:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.project-selection select:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.project-selection select option {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    padding: 0.5rem;
+}
+
+.new-project-input {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+
+.new-project-input input {
+    flex: 1;
+}
+
+.new-project-input.hidden {
+    display: none;
+}
+
+#newProjectBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }

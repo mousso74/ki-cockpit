@@ -2,7 +2,7 @@
    KI-Cockpit V2.1 - Storage & Backend
    ======================================== */
 
-const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbxK6GTY9xNBR3vmVF3aV-bd7RrU5IWxA7RDqXDuOQCfzZhM4ONz6RkLPVSMnj9aBYoq/exec';
+const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbzdUdWbgjp0wofYk2M1Ui8FcaB10awsrgTzojOWaJS9jAXWzopQUdFBDxd0bu9D9z8p/exec';
 
 /**
  * Saves a session to the backend
@@ -91,7 +91,7 @@ async function synthesize(problem, responses) {
             body: JSON.stringify({
                 action: 'synthesize',
                 problem: problem,
-                responses: responses
+                solutions: responses  // Backend V3.1 erwartet 'solutions', nicht 'responses'
             })
         });
 
@@ -222,6 +222,53 @@ async function getSession(id) {
     const response = await fetch(BACKEND_URL + '?action=getSession&id=' + id, {
         method: 'GET',
         redirect: 'follow'
+    });
+    return await response.json();
+}
+
+/**
+ * Lists all sessions from the backend
+ * @returns {Promise<Object>} - Object with status and data array
+ */
+async function listSessions() {
+    console.log('[storage.js] Listing all sessions');
+    const response = await fetch(BACKEND_URL + '?action=listSessions', {
+        method: 'GET',
+        redirect: 'follow'
+    });
+    return await response.json();
+}
+
+/**
+ * Gets all projects from the backend
+ * @returns {Promise<Object>} - Object with geschäftlich and privat arrays
+ */
+async function getProjects() {
+    console.log('[storage.js] Loading projects from backend');
+    const response = await fetch(BACKEND_URL + '?action=getProjects', {
+        method: 'GET',
+        redirect: 'follow'
+    });
+    return await response.json();
+}
+
+/**
+ * Deletes a session from the backend (Google Drive)
+ * @param {string} id - Session file ID
+ * @returns {Promise<Object>} - Result of deletion
+ */
+async function deleteSession(id) {
+    console.log('[storage.js] Deleting session:', id);
+    const response = await fetch(BACKEND_URL, {
+        method: 'POST',
+        redirect: 'follow',
+        headers: {
+            'Content-Type': 'text/plain',
+        },
+        body: JSON.stringify({
+            action: 'deleteSession',
+            id: id
+        })
     });
     return await response.json();
 }
