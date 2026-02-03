@@ -25,9 +25,47 @@
             <div class="card">
                 <h2>Problem beschreiben</h2>
                 <p class="description">Beschreibe dein Problem oder deine Aufgabe so detailliert wie möglich.</p>
+
+                <!-- Kategorie-Auswahl -->
                 <div class="form-group">
-                    <label for="sessionTitle">Session-Titel (für Archiv)</label>
-                    <input type="text" id="sessionTitle" placeholder="z.B. Judopass Prüfung Susi" required>
+                    <label>Kategorie</label>
+                    <div class="category-selection">
+                        <label class="category-option">
+                            <input type="radio" name="category" value="geschäftlich" required>
+                            <span class="category-card">
+                                <span class="category-icon">💼</span>
+                                <span>Geschäftlich</span>
+                            </span>
+                        </label>
+                        <label class="category-option">
+                            <input type="radio" name="category" value="privat" required>
+                            <span class="category-card">
+                                <span class="category-icon">🏠</span>
+                                <span>Privat</span>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Projekt-Auswahl -->
+                <div class="form-group">
+                    <label for="projectSelect">Projekt</label>
+                    <div class="project-selection">
+                        <select id="projectSelect" disabled>
+                            <option value="">-- Erst Kategorie wählen --</option>
+                        </select>
+                        <button type="button" id="newProjectBtn" class="btn btn-small" disabled onclick="showNewProjectInput()">+ Neu</button>
+                    </div>
+                    <div id="newProjectContainer" class="new-project-input hidden">
+                        <input type="text" id="newProjectName" placeholder="Neuer Projektname...">
+                        <button type="button" class="btn btn-small btn-primary" onclick="confirmNewProject()">OK</button>
+                        <button type="button" class="btn btn-small" onclick="cancelNewProject()">Abbrechen</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="sessionTitle">Session-Titel</label>
+                    <input type="text" id="sessionTitle" placeholder="z.B. Heizungsproblem, Fensterangebot..." required>
                 </div>
                 <textarea id="problem-input" placeholder="Beschreibe hier dein Problem..."></textarea>
             </div>

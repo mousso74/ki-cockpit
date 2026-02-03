@@ -2,7 +2,7 @@
    KI-Cockpit V2.1 - Storage & Backend
    ======================================== */
 
-const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbxK6GTY9xNBR3vmVF3aV-bd7RrU5IWxA7RDqXDuOQCfzZhM4ONz6RkLPVSMnj9aBYoq/exec';
+const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbyS3I8PO9iB9_YOI8sUIGMLy0zn8AXZ1SnujVxyX_2EXLI9OnNKPYyi44J7VdRGKsOS/exec';
 
 /**
  * Saves a session to the backend
