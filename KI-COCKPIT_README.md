@@ -1,7 +1,7 @@
-# Asinito KI-Cockpit V3.4.2 – Vollständige Technische Dokumentation
+# Asinito KI-Cockpit V3.4.5 – Vollständige Technische Dokumentation
 
 **Projektname:** Asinito KI-Cockpit (ehemals KI-Cockpit)
-**Version:** 3.4.2
+**Version:** 3.4.5
 **Entwicklungszeitraum:** 1.–3. Februar 2026
 **Lead-Architekt:** Claude (Anthropic)
 **Assistenten:** Gemini (Google), ChatGPT (OpenAI)
@@ -876,6 +876,23 @@ function generateSessionMarkdown(session) {
 | | | - updateProjectDropdown() korrigiert: `result.data[category]` statt `result.data.projects` |
 | | | - Projekt-Dropdown lädt jetzt korrekt existierende Projekte |
 | | | - Debug-Logging für Backend-Response hinzugefügt |
+| **V3.4.3** | **04.02.2026** | **Question Extraction Multi-Format Support** |
+| | | - `extractQuestionsFromText()` unterstützt 7 verschiedene Frage-Formate |
+| | | - Format 1: `1. (P1) (TAG:xxx) Question` |
+| | | - Format 2: `1. (P1) Question` (ohne TAG) |
+| | | - Format 3: `- (P1) Question` (mit Bullet) |
+| | | - Format 4: `1. Question?` (nur Nummer) |
+| | | - Format 5: `- Question?` (Bullet mit ?) |
+| | | - Format 6: `**Frage:** Question?` (Markdown) |
+| | | - Format 7: Zeilen die mit ? enden (min. 20 Zeichen) |
+| **V3.4.4** | **04.02.2026** | **Debug Logging für Fragen-Deduplizierung** |
+| | | - Debug-Logging für extrahierte Fragen hinzugefügt |
+| | | - Logging für API-Requests und Responses |
+| **V3.4.5** | **04.02.2026** | **Enhanced Deduplication Debugging** |
+| | | - Erweiterte Console-Logs für kompletten Deduplizierungs-Prozess |
+| | | - Warnung bei sehr langem Problem-Text (>5000 chars) |
+| | | - Logging zeigt Input vs Output Fragen-Anzahl |
+| | | - Toast zeigt jetzt original + deduplizierte Anzahl |
 
 ---
 

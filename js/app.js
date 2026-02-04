@@ -402,27 +402,57 @@ async function analyzeQuestions() {
         const claudeQuestions = extractQuestionsFromText(claudeOutput);
         const geminiQuestions = extractQuestionsFromText(geminiOutput);
 
-        console.log('[app.js] Extracted questions - ChatGPT:', chatgptQuestions.length, 'Claude:', claudeQuestions.length, 'Gemini:', geminiQuestions.length);
+        const totalExtracted = chatgptQuestions.length + claudeQuestions.length + geminiQuestions.length;
+
+        console.log('[app.js] ====== QUESTION EXTRACTION ======');
+        console.log('[app.js] ChatGPT questions extracted:', chatgptQuestions.length);
+        console.log('[app.js] Claude questions extracted:', claudeQuestions.length);
+        console.log('[app.js] Gemini questions extracted:', geminiQuestions.length);
+        console.log('[app.js] TOTAL questions extracted:', totalExtracted);
+        console.log('[app.js] Problem text length:', problemText.length, 'chars');
+
+        // Log individual questions for debugging
         console.log('[app.js] ChatGPT questions:', chatgptQuestions);
         console.log('[app.js] Claude questions:', claudeQuestions);
         console.log('[app.js] Gemini questions:', geminiQuestions);
 
+        // Warning if problem text is very long
+        if (problemText.length > 5000) {
+            console.warn('[app.js] WARNING: Problem text is very long (' + problemText.length + ' chars). Consider shortening it if deduplication fails.');
+        }
+
         // Call Gemini API for intelligent deduplication
+        console.log('[app.js] Calling deduplicateQuestionsAPI...');
         const result = await deduplicateQuestionsAPI(problemText, {
             chatgpt: chatgptQuestions,
             claude: claudeQuestions,
             gemini: geminiQuestions
         });
 
+        console.log('[app.js] ====== DEDUPLICATION RESULT ======');
+        console.log('[app.js] Result status:', result.status);
+        console.log('[app.js] Result data type:', typeof result.data);
+
         if (result.status === 'success' && result.data) {
             // Backend V3.1 gibt direkt das Array in result.data zurück
             // Fallback auf result.data.questions falls altes Format
             const questions = Array.isArray(result.data) ? result.data : (result.data.questions || result.data);
+
             console.log('[app.js] Deduplicated questions received:', questions.length);
+            console.log('[app.js] INPUT was:', totalExtracted, 'questions');
+            console.log('[app.js] OUTPUT is:', questions.length, 'deduplicated questions');
+
+            // Check if there's a significant reduction (potential issue)
+            if (totalExtracted > 0 && questions.length < totalExtracted * 0.3) {
+                console.warn('[app.js] WARNING: Significant question reduction detected!');
+                console.warn('[app.js] Input:', totalExtracted, '-> Output:', questions.length);
+                console.warn('[app.js] This might indicate an API issue.');
+            }
+
             displayDeduplicatedQuestions(questions);
             session.deduplicatedQuestions = questions;
             window.deduplicatedQuestions = questions;
-            showToast(`${questions.length} deduplizierte Fragen gefunden!`, 'success');
+            showToast(`${questions.length} deduplizierte Fragen gefunden! (von ${totalExtracted} original)`, 'success');
         } else {
             // Fallback to local deduplication
             console.log('[app.js] API deduplication failed, using fallback');

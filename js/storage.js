@@ -280,24 +280,55 @@ async function deleteSession(id) {
  * @returns {Promise<Object>} - Deduplicated questions
  */
 async function deduplicateQuestionsAPI(originalProblem, questions) {
-    console.log('[storage.js] Sending to deduplicateQuestions API:');
-    console.log('[storage.js] - Problem length:', originalProblem?.length || 0, 'chars');
-    console.log('[storage.js] - ChatGPT questions:', questions.chatgpt?.length || 0);
-    console.log('[storage.js] - Claude questions:', questions.claude?.length || 0);
-    console.log('[storage.js] - Gemini questions:', questions.gemini?.length || 0);
+    console.log('[storage.js] ====== DEDUPLICATION API CALL ======');
+    console.log('[storage.js] Problem length:', originalProblem?.length || 0, 'chars');
+    console.log('[storage.js] ChatGPT questions count:', questions.chatgpt?.length || 0);
+    console.log('[storage.js] Claude questions count:', questions.claude?.length || 0);
+    console.log('[storage.js] Gemini questions count:', questions.gemini?.length || 0);
+
+    // Log all questions being sent
+    console.log('[storage.js] ChatGPT questions:', JSON.stringify(questions.chatgpt, null, 2));
+    console.log('[storage.js] Claude questions:', JSON.stringify(questions.claude, null, 2));
+    console.log('[storage.js] Gemini questions:', JSON.stringify(questions.gemini, null, 2));
+
+    const totalQuestions = (questions.chatgpt?.length || 0) + (questions.claude?.length || 0) + (questions.gemini?.length || 0);
+    console.log('[storage.js] TOTAL questions being sent:', totalQuestions);
+
+    const requestBody = {
+        action: 'deduplicateQuestions',
+        originalProblem: originalProblem,
+        questions: questions
+    };
+
+    // Log the full request body size
+    const bodyString = JSON.stringify(requestBody);
+    console.log('[storage.js] Request body size:', bodyString.length, 'chars');
+
+    // Warn if problem text is very large
+    if (originalProblem && originalProblem.length > 5000) {
+        console.warn('[storage.js] WARNING: Problem text is very long (' + originalProblem.length + ' chars). This might cause issues with the API.');
+    }
 
     const response = await fetch(BACKEND_URL, {
         method: 'POST',
         redirect: 'follow',
         headers: { 'Content-Type': 'text/plain' },
-        body: JSON.stringify({
-            action: 'deduplicateQuestions',
-            originalProblem: originalProblem,
-            questions: questions
-        })
+        body: bodyString
     });
+
     const result = await response.json();
-    console.log('[storage.js] Deduplication response:', result);
+
+    console.log('[storage.js] ====== DEDUPLICATION RESPONSE ======');
+    console.log('[storage.js] Response status:', result.status);
+
+    if (result.status === 'success' && result.data) {
+        const returnedQuestions = Array.isArray(result.data) ? result.data : (result.data.questions || result.data);
+        console.log('[storage.js] Returned questions count:', returnedQuestions?.length || 0);
+        console.log('[storage.js] Returned questions:', JSON.stringify(returnedQuestions, null, 2));
+    } else {
+        console.error('[storage.js] Error response:', result);
+    }
+
     return result;
 }
 
