@@ -1,7 +1,7 @@
-# Asinito KI-Cockpit V3.4.5 – Vollständige Technische Dokumentation
+# Asinito KI-Cockpit V3.5.1 – Vollständige Technische Dokumentation
 
 **Projektname:** Asinito KI-Cockpit (ehemals KI-Cockpit)
-**Version:** 3.4.5
+**Version:** 3.5.1
 **Entwicklungszeitraum:** 1.–3. Februar 2026
 **Lead-Architekt:** Claude (Anthropic)
 **Assistenten:** Gemini (Google), ChatGPT (OpenAI)
@@ -890,9 +890,21 @@ function generateSessionMarkdown(session) {
 | | | - Logging für API-Requests und Responses |
 | **V3.4.5** | **04.02.2026** | **Enhanced Deduplication Debugging** |
 | | | - Erweiterte Console-Logs für kompletten Deduplizierungs-Prozess |
-| | | - Warnung bei sehr langem Problem-Text (>5000 chars) |
+| | | - Warnung bei sehr langem Problem-Text (>50000 chars) |
 | | | - Logging zeigt Input vs Output Fragen-Anzahl |
 | | | - Toast zeigt jetzt original + deduplizierte Anzahl |
+| **V3.5.0** | **04.02.2026** | **Backend Deduplizierung Optimierung** |
+| | | - Neuer Backend-Prompt mit "Audit-Logik" |
+| | | - 50.000 Zeichen Kontext-Limit |
+| | | - Temperature 0.1 für präzisere Ergebnisse |
+| | | - Ziel-Output Formel: 60%-100% der Eingangsfragen |
+| **V3.5.1** | **04.02.2026** | **Backend Deduplizierung Fix - ID-basiertes Audit** |
+| | | - Problem: Gemini fasste zu aggressiv zusammen (22 → 6 Fragen) |
+| | | - Lösung: Invertierte Logik ("Behalte alles, außer exakte Duplikate") |
+| | | - Jede Frage bekommt eine ID (C1, L1, G1) |
+| | | - Neues Feld `mapped_ids` zeigt Zusammenfassungen |
+| | | - Temperature 0.0 für maximale Präzision |
+| | | - Test: 15 Input → 10 Output (5 echte Duplikate erkannt) ✅ |
 
 ---
 

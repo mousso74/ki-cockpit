@@ -416,9 +416,9 @@ async function analyzeQuestions() {
         console.log('[app.js] Claude questions:', claudeQuestions);
         console.log('[app.js] Gemini questions:', geminiQuestions);
 
-        // Warning if problem text is very long
-        if (problemText.length > 5000) {
-            console.warn('[app.js] WARNING: Problem text is very long (' + problemText.length + ' chars). Consider shortening it if deduplication fails.');
+        // Warning if problem text is very long (Backend kürzt auf 50000 Zeichen)
+        if (problemText.length > 50000) {
+            console.warn('[app.js] WARNING: Problem text exceeds 50000 chars (' + problemText.length + '). It will be truncated by the backend.');
         }
 
         // Call Gemini API for intelligent deduplication

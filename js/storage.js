@@ -304,9 +304,9 @@ async function deduplicateQuestionsAPI(originalProblem, questions) {
     const bodyString = JSON.stringify(requestBody);
     console.log('[storage.js] Request body size:', bodyString.length, 'chars');
 
-    // Warn if problem text is very large
-    if (originalProblem && originalProblem.length > 5000) {
-        console.warn('[storage.js] WARNING: Problem text is very long (' + originalProblem.length + ' chars). This might cause issues with the API.');
+    // Info if problem text is large (Backend kürzt auf 50000 Zeichen)
+    if (originalProblem && originalProblem.length > 50000) {
+        console.warn('[storage.js] INFO: Problem text exceeds 50000 chars (' + originalProblem.length + '). Backend will truncate.');
     }
 
     const response = await fetch(BACKEND_URL, {
