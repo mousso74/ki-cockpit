@@ -397,11 +397,21 @@ async function analyzeQuestions() {
     showState(3);
 
     try {
+        // Extract questions from each AI output
+        const chatgptQuestions = extractQuestionsFromText(chatgptOutput);
+        const claudeQuestions = extractQuestionsFromText(claudeOutput);
+        const geminiQuestions = extractQuestionsFromText(geminiOutput);
+
+        console.log('[app.js] Extracted questions - ChatGPT:', chatgptQuestions.length, 'Claude:', claudeQuestions.length, 'Gemini:', geminiQuestions.length);
+        console.log('[app.js] ChatGPT questions:', chatgptQuestions);
+        console.log('[app.js] Claude questions:', claudeQuestions);
+        console.log('[app.js] Gemini questions:', geminiQuestions);
+
         // Call Gemini API for intelligent deduplication
         const result = await deduplicateQuestionsAPI(problemText, {
-            chatgpt: extractQuestionsFromText(chatgptOutput),
-            claude: extractQuestionsFromText(claudeOutput),
-            gemini: extractQuestionsFromText(geminiOutput)
+            chatgpt: chatgptQuestions,
+            claude: claudeQuestions,
+            gemini: geminiQuestions
         });
 
         if (result.status === 'success' && result.data) {

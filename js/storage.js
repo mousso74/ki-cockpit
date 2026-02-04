@@ -280,6 +280,12 @@ async function deleteSession(id) {
  * @returns {Promise<Object>} - Deduplicated questions
  */
 async function deduplicateQuestionsAPI(originalProblem, questions) {
+    console.log('[storage.js] Sending to deduplicateQuestions API:');
+    console.log('[storage.js] - Problem length:', originalProblem?.length || 0, 'chars');
+    console.log('[storage.js] - ChatGPT questions:', questions.chatgpt?.length || 0);
+    console.log('[storage.js] - Claude questions:', questions.claude?.length || 0);
+    console.log('[storage.js] - Gemini questions:', questions.gemini?.length || 0);
+
     const response = await fetch(BACKEND_URL, {
         method: 'POST',
         redirect: 'follow',
@@ -290,7 +296,9 @@ async function deduplicateQuestionsAPI(originalProblem, questions) {
             questions: questions
         })
     });
-    return await response.json();
+    const result = await response.json();
+    console.log('[storage.js] Deduplication response:', result);
+    return result;
 }
 
 // Export for module usage (if needed)
