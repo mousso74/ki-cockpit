@@ -434,7 +434,7 @@ async function analyzeQuestions() {
 }
 
 /**
- * Extracts questions from AI output text in the new format
+ * Extracts questions from AI output text - supports multiple formats
  * @param {string} text - AI output text
  * @returns {Array} - Array of question strings
  */
@@ -442,13 +442,62 @@ function extractQuestionsFromText(text) {
     if (!text) return [];
     const questions = [];
     const lines = text.split('\n');
+
     for (const line of lines) {
-        // Match format: 1. (P1) (TAG:xxx) Question text
-        const match = line.match(/^\d+\.\s*\(P[123]\)\s*\(TAG:\w+\)\s*(.+)/);
+        const trimmedLine = line.trim();
+        if (!trimmedLine) continue;
+
+        let match;
+
+        // Format 1: 1. (P1) (TAG:xxx) Question text
+        match = trimmedLine.match(/^\d+\.\s*\(P[123]\)\s*\(TAG:\w+\)\s*(.+)/);
         if (match) {
             questions.push(match[1].trim());
+            continue;
+        }
+
+        // Format 2: 1. (P1) Question text (ohne TAG)
+        match = trimmedLine.match(/^\d+\.\s*\(P[123]\)\s+(.+)/);
+        if (match) {
+            questions.push(match[1].trim());
+            continue;
+        }
+
+        // Format 3: - (P1) Question text (mit Bullet)
+        match = trimmedLine.match(/^[-•]\s*\(P[123]\)\s+(.+)/);
+        if (match) {
+            questions.push(match[1].trim());
+            continue;
+        }
+
+        // Format 4: 1. Question text (nur Nummer und Frage mit ?)
+        match = trimmedLine.match(/^\d+\.\s+(.+\?)\s*$/);
+        if (match) {
+            questions.push(match[1].trim());
+            continue;
+        }
+
+        // Format 5: - Question text (Bullet mit Fragezeichen)
+        match = trimmedLine.match(/^[-•]\s+(.+\?)\s*$/);
+        if (match) {
+            questions.push(match[1].trim());
+            continue;
+        }
+
+        // Format 6: **Frage:** oder ähnliche Markdown-Formatierung
+        match = trimmedLine.match(/^\*\*.*?\*\*:?\s*(.+\?)\s*$/);
+        if (match) {
+            questions.push(match[1].trim());
+            continue;
+        }
+
+        // Format 7: Zeile endet mit Fragezeichen und beginnt mit Großbuchstabe (min. 20 Zeichen)
+        if (trimmedLine.endsWith('?') && /^[A-ZÄÖÜ]/.test(trimmedLine) && trimmedLine.length > 20) {
+            questions.push(trimmedLine);
         }
     }
+
+    console.log('[app.js] extractQuestionsFromText found', questions.length, 'questions from input');
     return questions;
 }
 
