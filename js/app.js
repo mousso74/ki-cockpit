@@ -1562,10 +1562,11 @@ function showToast(message, type = 'success') {
         toast.classList.remove('hidden');
     }, 10);
 
-    // Hide after 3 seconds
+    // Hide after 3s (success) or 8s (warning/error) so errors can be read
+    const duration = (type === 'warning' || type === 'error') ? 8000 : 3000;
     setTimeout(() => {
         toast.classList.add('hidden');
-    }, 3000);
+    }, duration);
 }
 
 // ========================================
