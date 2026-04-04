@@ -20,15 +20,15 @@ let extSession = {
     template:  'extended',
 
     phase1Prompt: '',
-    aiQuestions:  { chatgpt: '', claude: '', gemini: '' },
+    aiQuestions:  { chatgpt: '', claude: '', gemini: '', deepseek: '' },
 
     deduplicatedQuestions: [],
     answers: [],
 
     phase2Prompt:    '',
-    aiSolutions_r1:  { chatgpt: '', claude: '', gemini: '' },   // Runde 1
-    crossReviewPrompts: { chatgpt: '', claude: '', gemini: '' }, // Cross-Review Prompts
-    aiSolutions_r2:  { chatgpt: '', claude: '', gemini: '' },   // Runde 2 (überarbeitet)
+    aiSolutions_r1:  { chatgpt: '', claude: '', gemini: '', deepseek: '' },   // Runde 1
+    crossReviewPrompts: { chatgpt: '', claude: '', gemini: '', deepseek: '' }, // Cross-Review Prompts
+    aiSolutions_r2:  { chatgpt: '', claude: '', gemini: '', deepseek: '' },   // Runde 2 (überarbeitet)
 
     synthesis: null
 };
@@ -55,7 +55,7 @@ You must internally verify compliance with all rules before responding.
 If compliance is not met, correct the output silently before returning it.`;
 
 const CR_USER = `Du hast das folgende Problem bereits eigenständig analysiert und gelöst.
-Jetzt erhältst du die Antworten zweier anderer KI-Assistenten zum selben Problem.
+Jetzt erhältst du die Antworten der anderen KI-Assistenten zum selben Problem.
 Deine Aufgabe: kritisch analysieren, das Beste übernehmen, Fehler benennen, verbesserte Gesamtantwort erstellen.
 
 [PROBLEM]
@@ -70,13 +70,7 @@ Deine Aufgabe: kritisch analysieren, das Beste übernehmen, Fehler benennen, ver
 {OWN_ANSWER}
 [/DEINE_URSPRÜNGLICHE_ANTWORT]
 
-[ANTWORT_ANDERER_KI_1 quelle="{OTHER1_NAME}"]
-{OTHER1_ANSWER}
-[/ANTWORT_ANDERER_KI_1]
-
-[ANTWORT_ANDERER_KI_2 quelle="{OTHER2_NAME}"]
-{OTHER2_ANSWER}
-[/ANTWORT_ANDERER_KI_2]
+{OTHERS_BLOCK}
 
 [AUFGABE]
 1. Analysiere die Antworten der beiden anderen KIs.
@@ -126,25 +120,24 @@ NONE
 [/OUTPUT_FORMAT]`;
 
 /**
- * Generates the cross-review prompt for one KI.
- * @param {string} problem        - Problem text
- * @param {string} qaBlock        - Q&A block as formatted string
- * @param {string} ownAnswer      - This KI's own answer from Runde 1
- * @param {string} other1Name     - Name of first competing KI
- * @param {string} other1Answer   - First competing KI's answer
- * @param {string} other2Name     - Name of second competing KI
- * @param {string} other2Answer   - Second competing KI's answer
- * @returns {string}              - Complete prompt (system + user combined)
+ * Generates the cross-review prompt for one KI dynamically.
+ * @param {string} problem    - Problem text
+ * @param {string} qaBlock    - Q&A block as formatted string
+ * @param {string} ownAnswer  - This KI's own Runde-1 answer
+ * @param {Array}  others     - Array of {name, answer} for all other participating KIs
+ * @returns {string}          - Complete prompt (system + user combined)
  */
-function generateCrossReviewPrompt(problem, qaBlock, ownAnswer, other1Name, other1Answer, other2Name, other2Answer) {
+function generateCrossReviewPrompt(problem, qaBlock, ownAnswer, others) {
+    // Build dynamic "other KIs" section
+    const othersBlock = others.map((o, i) =>
+        `[ANTWORT_ANDERER_KI_${i + 1} quelle="${o.name}"]\n${o.answer || '(keine Antwort eingegeben)'}\n[/ANTWORT_ANDERER_KI_${i + 1}]`
+    ).join('\n\n');
+
     const userPart = CR_USER
-        .replace('{PROBLEM_TEXT}',  problem)
-        .replace('{QA_BLOCK}',      qaBlock)
-        .replace('{OWN_ANSWER}',    ownAnswer  || '(keine Antwort eingegeben)')
-        .replace('{OTHER1_NAME}',   other1Name)
-        .replace('{OTHER1_ANSWER}', other1Answer || '(keine Antwort eingegeben)')
-        .replace('{OTHER2_NAME}',   other2Name)
-        .replace('{OTHER2_ANSWER}', other2Answer || '(keine Antwort eingegeben)');
+        .replace('{PROBLEM_TEXT}', problem)
+        .replace('{QA_BLOCK}',     qaBlock)
+        .replace('{OWN_ANSWER}',   ownAnswer || '(keine Antwort eingegeben)')
+        .replace('{OTHERS_BLOCK}', othersBlock);
 
     return `[SYSTEM]\n${CR_SYSTEM}\n[/SYSTEM]\n\n${userPart}`;
 }
@@ -328,27 +321,29 @@ function extGeneratePrompts() {
 // ----------------------------------------
 
 async function extAnalyzeQuestions() {
-    const chatgpt = document.getElementById('chatgpt-questions')?.value.trim();
-    const claude  = document.getElementById('claude-questions')?.value.trim();
-    const gemini  = document.getElementById('gemini-questions')?.value.trim();
+    const chatgpt  = document.getElementById('chatgpt-questions')?.value.trim()  || '';
+    const claude   = document.getElementById('claude-questions')?.value.trim()   || '';
+    const gemini   = document.getElementById('gemini-questions')?.value.trim()   || '';
+    const deepseek = document.getElementById('deepseek-questions')?.value.trim() || '';
 
-    if (!chatgpt && !claude && !gemini) {
+    if (!chatgpt && !claude && !gemini && !deepseek) {
         extShowToast('Bitte mindestens eine KI-Antwort einfügen.', 'error'); return;
     }
 
-    extSession.aiQuestions = { chatgpt, claude, gemini };
+    extSession.aiQuestions = { chatgpt, claude, gemini, deepseek };
 
     const container = document.getElementById('questions-container');
     container.innerHTML = '<div class="loading-text">🔄 Fragen werden dedupliziert…</div>';
     extShowState(3);
 
     try {
-        // Parse questions from each KI
-        const chatgptQs = extractQuestions(chatgpt || '', 'chatgpt');
-        const claudeQs  = extractQuestions(claude  || '', 'claude');
-        const geminiQs  = extractQuestions(gemini  || '', 'gemini');
+        // Parse questions from each participating KI (skip empty)
+        const chatgptQs  = chatgpt  ? extractQuestions(chatgpt,  'chatgpt')  : [];
+        const claudeQs   = claude   ? extractQuestions(claude,   'claude')   : [];
+        const geminiQs   = gemini   ? extractQuestions(gemini,   'gemini')   : [];
+        const deepseekQs = deepseek ? extractQuestions(deepseek, 'deepseek') : [];
 
-        console.log('[extended.js] Questions parsed:', chatgptQs.length, claudeQs.length, geminiQs.length);
+        console.log('[extended.js] Questions parsed:', chatgptQs.length, claudeQs.length, geminiQs.length, deepseekQs.length);
 
         // Deduplicate via backend
         const response = await fetch(BACKEND_URL, {
@@ -357,7 +352,7 @@ async function extAnalyzeQuestions() {
             body: JSON.stringify({
                 action: 'deduplicateQuestions',
                 originalProblem: extSession.problem,
-                questions: { chatgpt: chatgptQs, claude: claudeQs, gemini: geminiQs }
+                questions: { chatgpt: chatgptQs, claude: claudeQs, gemini: geminiQs, deepseek: deepseekQs }
             })
         });
 
@@ -435,49 +430,64 @@ function extGenerateSolvePrompts() {
 // ----------------------------------------
 
 function extGenerateCrossReviewPrompts() {
-    const r1ChatGPT = document.getElementById('chatgpt-solution-r1')?.value.trim();
-    const r1Claude  = document.getElementById('claude-solution-r1')?.value.trim();
-    const r1Gemini  = document.getElementById('gemini-solution-r1')?.value.trim();
+    // Collect all participating KIs (non-empty answers only)
+    const ALL_KIS = [
+        { key: 'chatgpt',  name: 'ChatGPT',  answer: document.getElementById('chatgpt-solution-r1')?.value.trim()  || '' },
+        { key: 'claude',   name: 'Claude',   answer: document.getElementById('claude-solution-r1')?.value.trim()   || '' },
+        { key: 'gemini',   name: 'Gemini',   answer: document.getElementById('gemini-solution-r1')?.value.trim()   || '' },
+        { key: 'deepseek', name: 'DeepSeek', answer: document.getElementById('deepseek-solution-r1')?.value.trim() || '' },
+    ];
 
-    if (!r1ChatGPT && !r1Claude && !r1Gemini) {
-        extShowToast('Bitte mindestens eine Lösung einfügen.', 'error'); return;
+    const participating = ALL_KIS.filter(ki => ki.answer.length > 0);
+
+    if (participating.length < 2) {
+        extShowToast('Bitte mindestens zwei KI-Lösungen einfügen damit Cross-Review möglich ist.', 'error');
+        return;
     }
 
-    extSession.aiSolutions_r1 = { chatgpt: r1ChatGPT, claude: r1Claude, gemini: r1Gemini };
+    // Save r1 solutions
+    extSession.aiSolutions_r1 = Object.fromEntries(ALL_KIS.map(ki => [ki.key, ki.answer]));
 
-    // Build Q&A block string for the prompt
+    // Build Q&A block string
     const qaBlock = extSession.deduplicatedQuestions.map((q, i) => {
         const qText = typeof q === 'string' ? q : (q.question || String(q));
         return `F${i+1}: ${qText}\nA${i+1}: ${extSession.answers[i] || '(nicht beantwortet)'}`;
     }).join('\n\n');
 
-    // Generate one prompt per KI (each sees its own answer + the other two)
-    const promptChatGPT = generateCrossReviewPrompt(
-        extSession.problem, qaBlock,
-        r1ChatGPT, 'Claude', r1Claude, 'Gemini', r1Gemini
-    );
-    const promptClaude = generateCrossReviewPrompt(
-        extSession.problem, qaBlock,
-        r1Claude, 'ChatGPT', r1ChatGPT, 'Gemini', r1Gemini
-    );
-    const promptGemini = generateCrossReviewPrompt(
-        extSession.problem, qaBlock,
-        r1Gemini, 'ChatGPT', r1ChatGPT, 'Claude', r1Claude
-    );
+    // Generate one prompt per participating KI (each sees all others' answers)
+    const prompts = {};
+    participating.forEach(ki => {
+        const others = participating
+            .filter(o => o.key !== ki.key)
+            .map(o => ({ name: o.name, answer: o.answer }));
 
-    extSession.crossReviewPrompts = {
-        chatgpt: promptChatGPT,
-        claude:  promptClaude,
-        gemini:  promptGemini
-    };
+        prompts[ki.key] = generateCrossReviewPrompt(
+            extSession.problem, qaBlock, ki.answer, others
+        );
+    });
 
-    document.getElementById('cr-prompt-chatgpt').textContent = promptChatGPT;
-    document.getElementById('cr-prompt-claude').textContent  = promptClaude;
-    document.getElementById('cr-prompt-gemini').textContent  = promptGemini;
+    extSession.crossReviewPrompts = prompts;
+
+    // Update tab visibility — show only participating KIs
+    ALL_KIS.forEach(ki => {
+        const tab   = document.getElementById(`cr-tab-${ki.key}`);
+        const panel = document.getElementById(`cr-${ki.key}`);
+        const isIn  = !!prompts[ki.key];
+
+        if (tab)   tab.style.display   = isIn ? '' : 'none';
+        if (panel) panel.classList.add('hidden');
+
+        if (isIn && panel) {
+            document.getElementById(`cr-prompt-${ki.key}`).textContent = prompts[ki.key];
+        }
+    });
 
     extShowState(6);
-    // Show first tab by default
-    extShowCRTab('chatgpt', document.querySelector('.cr-tab'));
+
+    // Activate first participating tab
+    const firstKey = participating[0].key;
+    const firstTab = document.getElementById(`cr-tab-${firstKey}`);
+    extShowCRTab(firstKey, firstTab);
 }
 
 
@@ -490,8 +500,8 @@ function extShowCRTab(ai, btn) {
     document.querySelectorAll('.cr-tab').forEach(t => t.classList.remove('active'));
     if (btn) btn.classList.add('active');
 
-    // Show correct panel
-    ['chatgpt', 'claude', 'gemini'].forEach(name => {
+    // Show correct panel, hide others
+    ['chatgpt', 'claude', 'gemini', 'deepseek'].forEach(name => {
         const panel = document.getElementById(`cr-${name}`);
         if (panel) panel.classList.toggle('hidden', name !== ai);
     });
@@ -510,15 +520,16 @@ function extCopyCRPrompt(ai) {
 // ----------------------------------------
 
 async function extStartSynthesis() {
-    const r2ChatGPT = document.getElementById('chatgpt-solution-r2')?.value.trim();
-    const r2Claude  = document.getElementById('claude-solution-r2')?.value.trim();
-    const r2Gemini  = document.getElementById('gemini-solution-r2')?.value.trim();
+    const r2ChatGPT  = document.getElementById('chatgpt-solution-r2')?.value.trim()  || '';
+    const r2Claude   = document.getElementById('claude-solution-r2')?.value.trim()   || '';
+    const r2Gemini   = document.getElementById('gemini-solution-r2')?.value.trim()   || '';
+    const r2DeepSeek = document.getElementById('deepseek-solution-r2')?.value.trim() || '';
 
-    if (!r2ChatGPT && !r2Claude && !r2Gemini) {
+    if (!r2ChatGPT && !r2Claude && !r2Gemini && !r2DeepSeek) {
         extShowToast('Bitte die überarbeiteten Lösungen einfügen.', 'error'); return;
     }
 
-    extSession.aiSolutions_r2 = { chatgpt: r2ChatGPT, claude: r2Claude, gemini: r2Gemini };
+    extSession.aiSolutions_r2 = { chatgpt: r2ChatGPT, claude: r2Claude, gemini: r2Gemini, deepseek: r2DeepSeek };
 
     const btn = document.getElementById('synthesis-btn');
     btn.textContent = '⏳ Synthese läuft…';
@@ -532,9 +543,10 @@ async function extStartSynthesis() {
                 action:   'synthesize',
                 problem:  extSession.problem,
                 solutions: {
-                    chatgpt: r2ChatGPT,
-                    claude:  r2Claude,
-                    gemini:  r2Gemini
+                    chatgpt:  r2ChatGPT  || undefined,
+                    claude:   r2Claude   || undefined,
+                    gemini:   r2Gemini   || undefined,
+                    deepseek: r2DeepSeek || undefined
                 }
             })
         });

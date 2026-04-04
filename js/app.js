@@ -28,14 +28,16 @@ let session = {
     aiQuestions: {
         chatgpt: '',
         claude: '',
-        gemini: ''
+        gemini: '',
+        deepseek: ''
     },
     deduplicatedQuestions: [],
     phase2Prompt: '',
     aiSolutions: {
         chatgpt: '',
         claude: '',
-        gemini: ''
+        gemini: '',
+        deepseek: ''
     },
     synthesis: null
 };
@@ -389,23 +391,25 @@ async function analyzeQuestions() {
     // Increment usage counter
     incrementDedupeCounter();
 
-    // Get AI outputs
-    const chatgptOutput = document.getElementById('chatgpt-questions').value;
-    const claudeOutput = document.getElementById('claude-questions').value;
-    const geminiOutput = document.getElementById('gemini-questions').value;
-    const problemText = document.getElementById('problem-input').value;
+    // Get AI outputs (DeepSeek optional)
+    const chatgptOutput  = document.getElementById('chatgpt-questions').value;
+    const claudeOutput   = document.getElementById('claude-questions').value;
+    const geminiOutput   = document.getElementById('gemini-questions').value;
+    const deepseekOutput = document.getElementById('deepseek-questions')?.value || '';
+    const problemText    = document.getElementById('problem-input').value;
 
     // Check if at least one AI has input
-    if (!chatgptOutput && !claudeOutput && !geminiOutput) {
+    if (!chatgptOutput && !claudeOutput && !geminiOutput && !deepseekOutput) {
         showToast('Bitte füge mindestens eine KI-Antwort ein.', 'error');
         return;
     }
 
     // Save to session
     session.aiQuestions = {
-        chatgpt: chatgptOutput,
-        claude: claudeOutput,
-        gemini: geminiOutput
+        chatgpt:  chatgptOutput,
+        claude:   claudeOutput,
+        gemini:   geminiOutput,
+        deepseek: deepseekOutput
     };
 
     // Show loading indicator
@@ -416,17 +420,19 @@ async function analyzeQuestions() {
     showState(3);
 
     try {
-        // Extract questions from each AI output
-        const chatgptQuestions = extractQuestionsFromText(chatgptOutput);
-        const claudeQuestions = extractQuestionsFromText(claudeOutput);
-        const geminiQuestions = extractQuestionsFromText(geminiOutput);
+        // Extract questions from each AI output (skip empty)
+        const chatgptQuestions  = extractQuestionsFromText(chatgptOutput);
+        const claudeQuestions   = extractQuestionsFromText(claudeOutput);
+        const geminiQuestions   = extractQuestionsFromText(geminiOutput);
+        const deepseekQuestions = extractQuestionsFromText(deepseekOutput);
 
-        const totalExtracted = chatgptQuestions.length + claudeQuestions.length + geminiQuestions.length;
+        const totalExtracted = chatgptQuestions.length + claudeQuestions.length + geminiQuestions.length + deepseekQuestions.length;
 
         console.log('[app.js] ====== QUESTION EXTRACTION ======');
         console.log('[app.js] ChatGPT questions extracted:', chatgptQuestions.length);
         console.log('[app.js] Claude questions extracted:', claudeQuestions.length);
         console.log('[app.js] Gemini questions extracted:', geminiQuestions.length);
+        console.log('[app.js] DeepSeek questions extracted:', deepseekQuestions.length);
         console.log('[app.js] TOTAL questions extracted:', totalExtracted);
         console.log('[app.js] Problem text length:', problemText.length, 'chars');
 
@@ -443,9 +449,10 @@ async function analyzeQuestions() {
         // Call Gemini API for intelligent deduplication
         console.log('[app.js] Calling deduplicateQuestionsAPI...');
         const result = await deduplicateQuestionsAPI(problemText, {
-            chatgpt: chatgptQuestions,
-            claude: claudeQuestions,
-            gemini: geminiQuestions
+            chatgpt:  chatgptQuestions,
+            claude:   claudeQuestions,
+            gemini:   geminiQuestions,
+            deepseek: deepseekQuestions
         });
 
         console.log('[app.js] ====== DEDUPLICATION RESULT ======');
@@ -476,7 +483,7 @@ async function analyzeQuestions() {
             // Fallback to local deduplication – show actual backend error
             const backendError = result.message || JSON.stringify(result);
             console.warn('[app.js] API deduplication failed:', backendError);
-            const localQuestions = localDeduplicateQuestions(chatgptOutput, claudeOutput, geminiOutput);
+            const localQuestions = localDeduplicateQuestions(chatgptOutput, claudeOutput, geminiOutput, deepseekOutput);
             displayDeduplicatedQuestions(localQuestions);
             session.deduplicatedQuestions = localQuestions;
             window.deduplicatedQuestions = localQuestions;
@@ -485,7 +492,7 @@ async function analyzeQuestions() {
     } catch (error) {
         console.error('[app.js] Deduplication error:', error);
         // Fallback to local deduplication on error
-        const localQuestions = localDeduplicateQuestions(chatgptOutput, claudeOutput, geminiOutput);
+        const localQuestions = localDeduplicateQuestions(chatgptOutput, claudeOutput, geminiOutput, deepseekOutput);
         displayDeduplicatedQuestions(localQuestions);
         session.deduplicatedQuestions = localQuestions;
         window.deduplicatedQuestions = localQuestions;
@@ -576,7 +583,7 @@ function displayDeduplicatedQuestions(questions) {
     let html = '<div class="dedupe-list">';
     questions.forEach((q, index) => {
         const sourceBadges = (q.sources || []).map(s => {
-            const colors = { 'ChatGPT': '#74aa9c', 'Claude': '#d97706', 'Gemini': '#4285f4' };
+            const colors = { 'ChatGPT': '#10a37f', 'Claude': '#d97706', 'Gemini': '#4285f4', 'DeepSeek': '#7c3aed' };
             return `<span class="source-badge" style="background:${colors[s] || '#666'}">${s}</span>`;
         }).join('');
 
@@ -608,11 +615,12 @@ function displayDeduplicatedQuestions(questions) {
  * @param {string} gemini - Gemini output
  * @returns {Array} - Array of question objects
  */
-function localDeduplicateQuestions(chatgpt, claude, gemini) {
+function localDeduplicateQuestions(chatgpt, claude, gemini, deepseek = '') {
     const allQuestions = [];
     const seen = new Set();
 
     const addQuestions = (text, source) => {
+        if (!text) return;
         const questions = extractQuestionsFromText(text);
         questions.forEach(q => {
             const normalized = q.toLowerCase().trim();
@@ -627,9 +635,10 @@ function localDeduplicateQuestions(chatgpt, claude, gemini) {
         });
     };
 
-    addQuestions(chatgpt, 'ChatGPT');
-    addQuestions(claude, 'Claude');
-    addQuestions(gemini, 'Gemini');
+    addQuestions(chatgpt,  'ChatGPT');
+    addQuestions(claude,   'Claude');
+    addQuestions(gemini,   'Gemini');
+    addQuestions(deepseek, 'DeepSeek');
 
     return allQuestions;
 }
@@ -752,22 +761,24 @@ async function startSynthesis() {
     const resultDiv = document.getElementById('synthesis-result');
     const contentDiv = document.getElementById('synthesis-content');
 
-    // Get solutions
-    const chatgptSolution = document.getElementById('chatgpt-solution').value;
-    const claudeSolution = document.getElementById('claude-solution').value;
-    const geminiSolution = document.getElementById('gemini-solution').value;
+    // Get solutions (DeepSeek optional)
+    const chatgptSolution  = document.getElementById('chatgpt-solution').value;
+    const claudeSolution   = document.getElementById('claude-solution').value;
+    const geminiSolution   = document.getElementById('gemini-solution').value;
+    const deepseekSolution = document.getElementById('deepseek-solution')?.value || '';
 
     // Check if at least one solution is provided
-    if (!chatgptSolution && !claudeSolution && !geminiSolution) {
+    if (!chatgptSolution && !claudeSolution && !geminiSolution && !deepseekSolution) {
         showToast('Bitte füge mindestens eine Lösung ein.', 'error');
         return;
     }
 
-    // Save to session
+    // Save to session (only participating KIs)
     session.aiSolutions = {
-        chatgpt: chatgptSolution,
-        claude: claudeSolution,
-        gemini: geminiSolution
+        chatgpt:  chatgptSolution,
+        claude:   claudeSolution,
+        gemini:   geminiSolution,
+        deepseek: deepseekSolution
     };
 
     // Show loading state

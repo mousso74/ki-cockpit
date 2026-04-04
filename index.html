@@ -107,6 +107,9 @@
                 <button class="btn btn-gemini" onclick="copyPrompt('phase1', 'Gemini')">
                     <span class="btn-icon">📋</span> Gemini
                 </button>
+                <button class="btn btn-deepseek" onclick="copyPrompt('phase1', 'DeepSeek')">
+                    <span class="btn-icon">📋</span> DeepSeek
+                </button>
             </div>
             <div class="actions">
                 <button class="btn btn-secondary" onclick="prevState()">Zurück</button>
@@ -118,19 +121,23 @@
         <section id="state-2" class="state-section">
             <div class="card">
                 <h2>KI-Antworten einfügen</h2>
-                <p class="description">Füge die Fragen-Outputs der drei KIs hier ein.</p>
+                <p class="description">Füge die Fragen-Outputs der gefragten KIs ein. Nicht gefragte KIs einfach leer lassen.</p>
                 <div class="ai-inputs">
                     <div class="ai-input-group chatgpt">
-                        <label>ChatGPT Antwort</label>
-                        <textarea id="chatgpt-questions" placeholder="ChatGPT Fragen hier einfügen..."></textarea>
+                        <label>ChatGPT Fragen</label>
+                        <textarea id="chatgpt-questions" placeholder="ChatGPT Fragen hier einfügen…"></textarea>
                     </div>
                     <div class="ai-input-group claude">
-                        <label>Claude Antwort</label>
-                        <textarea id="claude-questions" placeholder="Claude Fragen hier einfügen..."></textarea>
+                        <label>Claude Fragen</label>
+                        <textarea id="claude-questions" placeholder="Claude Fragen hier einfügen…"></textarea>
                     </div>
                     <div class="ai-input-group gemini">
-                        <label>Gemini Antwort</label>
-                        <textarea id="gemini-questions" placeholder="Gemini Fragen hier einfügen..."></textarea>
+                        <label>Gemini Fragen</label>
+                        <textarea id="gemini-questions" placeholder="Gemini Fragen hier einfügen…"></textarea>
+                    </div>
+                    <div class="ai-input-group deepseek">
+                        <label>DeepSeek Fragen</label>
+                        <textarea id="deepseek-questions" placeholder="DeepSeek Fragen hier einfügen… (leer lassen wenn nicht gefragt)"></textarea>
                     </div>
                 </div>
             </div>
@@ -174,6 +181,9 @@
                 <button class="btn btn-gemini" onclick="copyPrompt('phase2', 'Gemini')">
                     <span class="btn-icon">📋</span> Gemini
                 </button>
+                <button class="btn btn-deepseek" onclick="copyPrompt('phase2', 'DeepSeek')">
+                    <span class="btn-icon">📋</span> DeepSeek
+                </button>
             </div>
             <div class="actions">
                 <button class="btn btn-secondary" onclick="prevState()">Zurück</button>
@@ -185,19 +195,23 @@
         <section id="state-5" class="state-section">
             <div class="card">
                 <h2>Lösungen einfügen</h2>
-                <p class="description">Füge die Lösungen der drei KIs hier ein.</p>
+                <p class="description">Füge die Lösungen der gefragten KIs ein. Nicht gefragte KIs einfach leer lassen.</p>
                 <div class="ai-inputs">
                     <div class="ai-input-group chatgpt">
                         <label>ChatGPT Lösung</label>
-                        <textarea id="chatgpt-solution" placeholder="ChatGPT Lösung hier einfügen..."></textarea>
+                        <textarea id="chatgpt-solution" placeholder="ChatGPT Lösung hier einfügen…"></textarea>
                     </div>
                     <div class="ai-input-group claude">
                         <label>Claude Lösung</label>
-                        <textarea id="claude-solution" placeholder="Claude Lösung hier einfügen..."></textarea>
+                        <textarea id="claude-solution" placeholder="Claude Lösung hier einfügen…"></textarea>
                     </div>
                     <div class="ai-input-group gemini">
                         <label>Gemini Lösung</label>
-                        <textarea id="gemini-solution" placeholder="Gemini Lösung hier einfügen..."></textarea>
+                        <textarea id="gemini-solution" placeholder="Gemini Lösung hier einfügen…"></textarea>
+                    </div>
+                    <div class="ai-input-group deepseek">
+                        <label>DeepSeek Lösung</label>
+                        <textarea id="deepseek-solution" placeholder="DeepSeek Lösung hier einfügen… (leer lassen wenn nicht gefragt)"></textarea>
                     </div>
                 </div>
             </div>
@@ -247,7 +261,7 @@
     <script src="js/prompts.js?v=3.4.5"></script>
     <script src="js/parser.js?v=3.4.5"></script>
     <script src="js/storage.js?v=3.4.5"></script>
-    <script src="js/app.js?v=3.5.0"></script>
+    <script src="js/app.js?v=3.5.1"></script>
     <script>
         // Keep template-option .selected class in sync
         document.querySelectorAll('input[name="template"]').forEach(radio => {

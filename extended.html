@@ -75,11 +75,11 @@
             <div class="card">
                 <h2>Ablauf: Erweiterte Analyse</h2>
                 <div class="flow-overview">
-                    <div class="flow-step done">① Fragen-Prompts generieren → an alle 3 KIs schicken</div>
+                    <div class="flow-step done">① Fragen-Prompts generieren → an 2–4 KIs schicken</div>
                     <div class="flow-step">② KI-Fragen zusammenführen → beantworten</div>
-                    <div class="flow-step">③ Lösungs-Prompts → 3 unabhängige KI-Lösungen</div>
-                    <div class="flow-step highlight">④ Cross-Review → jede KI bewertet die anderen beiden</div>
-                    <div class="flow-step">⑤ 3 überarbeitete Lösungen → finale Synthese</div>
+                    <div class="flow-step">③ Lösungs-Prompts → unabhängige KI-Lösungen (Runde 1)</div>
+                    <div class="flow-step highlight">④ Cross-Review → jede KI bewertet alle anderen</div>
+                    <div class="flow-step">⑤ überarbeitete Lösungen → finale Synthese</div>
                 </div>
             </div>
 
@@ -109,6 +109,9 @@
                 <button class="btn btn-gemini" onclick="extCopyPrompt('phase1', 'Gemini')">
                     <span class="btn-icon">📋</span> Gemini
                 </button>
+                <button class="btn btn-deepseek" onclick="extCopyPrompt('phase1', 'DeepSeek')">
+                    <span class="btn-icon">📋</span> DeepSeek
+                </button>
             </div>
             <div class="actions">
                 <button class="btn btn-secondary" onclick="extPrevState()">Zurück</button>
@@ -122,19 +125,23 @@
         <section id="state-2" class="state-section">
             <div class="card">
                 <h2>KI-Fragen einfügen</h2>
-                <p class="description">Füge die Fragen-Outputs der drei KIs hier ein.</p>
+                <p class="description">Füge die Fragen-Outputs der gefragten KIs ein. Nicht gefragte KIs einfach leer lassen.</p>
                 <div class="ai-inputs">
                     <div class="ai-input-group chatgpt">
                         <label>ChatGPT Fragen</label>
-                        <textarea id="chatgpt-questions" placeholder="ChatGPT Fragen hier einfügen..."></textarea>
+                        <textarea id="chatgpt-questions" placeholder="ChatGPT Fragen hier einfügen…"></textarea>
                     </div>
                     <div class="ai-input-group claude">
                         <label>Claude Fragen</label>
-                        <textarea id="claude-questions" placeholder="Claude Fragen hier einfügen..."></textarea>
+                        <textarea id="claude-questions" placeholder="Claude Fragen hier einfügen…"></textarea>
                     </div>
                     <div class="ai-input-group gemini">
                         <label>Gemini Fragen</label>
-                        <textarea id="gemini-questions" placeholder="Gemini Fragen hier einfügen..."></textarea>
+                        <textarea id="gemini-questions" placeholder="Gemini Fragen hier einfügen…"></textarea>
+                    </div>
+                    <div class="ai-input-group deepseek">
+                        <label>DeepSeek Fragen</label>
+                        <textarea id="deepseek-questions" placeholder="DeepSeek Fragen hier einfügen… (leer = nicht gefragt)"></textarea>
                     </div>
                 </div>
             </div>
@@ -180,6 +187,9 @@
                 <button class="btn btn-gemini" onclick="extCopyPrompt('phase2', 'Gemini')">
                     <span class="btn-icon">📋</span> Gemini
                 </button>
+                <button class="btn btn-deepseek" onclick="extCopyPrompt('phase2', 'DeepSeek')">
+                    <span class="btn-icon">📋</span> DeepSeek
+                </button>
             </div>
             <div class="actions">
                 <button class="btn btn-secondary" onclick="extPrevState()">Zurück</button>
@@ -193,19 +203,23 @@
         <section id="state-5" class="state-section">
             <div class="card">
                 <h2>Lösungen Runde 1 einfügen</h2>
-                <p class="description">Füge die drei unabhängigen KI-Lösungen ein. Im nächsten Schritt bewertet jede KI die Antworten der anderen beiden.</p>
+                <p class="description">Füge die unabhängigen KI-Lösungen ein. Im nächsten Schritt bewertet jede KI die Antworten aller anderen. Nicht gefragte KIs leer lassen.</p>
                 <div class="ai-inputs">
                     <div class="ai-input-group chatgpt">
                         <label>ChatGPT – Lösung Runde 1</label>
-                        <textarea id="chatgpt-solution-r1" placeholder="ChatGPT Lösung hier einfügen..."></textarea>
+                        <textarea id="chatgpt-solution-r1" placeholder="ChatGPT Lösung hier einfügen…"></textarea>
                     </div>
                     <div class="ai-input-group claude">
                         <label>Claude – Lösung Runde 1</label>
-                        <textarea id="claude-solution-r1" placeholder="Claude Lösung hier einfügen..."></textarea>
+                        <textarea id="claude-solution-r1" placeholder="Claude Lösung hier einfügen…"></textarea>
                     </div>
                     <div class="ai-input-group gemini">
                         <label>Gemini – Lösung Runde 1</label>
-                        <textarea id="gemini-solution-r1" placeholder="Gemini Lösung hier einfügen..."></textarea>
+                        <textarea id="gemini-solution-r1" placeholder="Gemini Lösung hier einfügen…"></textarea>
+                    </div>
+                    <div class="ai-input-group deepseek">
+                        <label>DeepSeek – Lösung Runde 1</label>
+                        <textarea id="deepseek-solution-r1" placeholder="DeepSeek Lösung hier einfügen… (leer = nicht gefragt)"></textarea>
                     </div>
                 </div>
             </div>
@@ -222,19 +236,21 @@
             <div class="card">
                 <h2>Phase 3 – Cross-Review Prompts</h2>
                 <p class="description">
-                    Jede KI erhält <strong>ihre eigene Antwort</strong> + die <strong>Antworten der anderen beiden KIs</strong> und soll:
+                    Jede teilnehmende KI erhält <strong>ihre eigene Antwort</strong> + die <strong>Antworten aller anderen KIs</strong> und soll:
                     <br>→ das Gute übernehmen&nbsp;&nbsp;→ das Schlechte/Falsche benennen&nbsp;&nbsp;→ eine verbesserte Gesamtantwort erstellen
+                    <br><em>Tabs für KIs die nicht teilgenommen haben werden ausgeblendet.</em>
                 </p>
 
-                <!-- Tab Navigation -->
-                <div class="cross-review-tabs">
-                    <button class="cr-tab active" onclick="extShowCRTab('chatgpt', this)">ChatGPT</button>
-                    <button class="cr-tab" onclick="extShowCRTab('claude', this)">Claude</button>
-                    <button class="cr-tab" onclick="extShowCRTab('gemini', this)">Gemini</button>
+                <!-- Tab Navigation (JS hides tabs for non-participating KIs) -->
+                <div class="cross-review-tabs" id="cr-tabs">
+                    <button class="cr-tab" id="cr-tab-chatgpt" onclick="extShowCRTab('chatgpt', this)">ChatGPT</button>
+                    <button class="cr-tab" id="cr-tab-claude"  onclick="extShowCRTab('claude', this)">Claude</button>
+                    <button class="cr-tab" id="cr-tab-gemini"  onclick="extShowCRTab('gemini', this)">Gemini</button>
+                    <button class="cr-tab" id="cr-tab-deepseek" onclick="extShowCRTab('deepseek', this)">DeepSeek</button>
                 </div>
 
                 <!-- ChatGPT Cross-Review Prompt -->
-                <div class="cr-panel" id="cr-chatgpt">
+                <div class="cr-panel hidden" id="cr-chatgpt">
                     <div class="prompt-display">
                         <pre id="cr-prompt-chatgpt"></pre>
                     </div>
@@ -262,6 +278,16 @@
                         <span class="btn-icon">📋</span> Für Gemini kopieren
                     </button>
                 </div>
+
+                <!-- DeepSeek Cross-Review Prompt -->
+                <div class="cr-panel hidden" id="cr-deepseek">
+                    <div class="prompt-display">
+                        <pre id="cr-prompt-deepseek"></pre>
+                    </div>
+                    <button class="btn btn-deepseek" style="margin-top:0.75rem;" onclick="extCopyCRPrompt('deepseek')">
+                        <span class="btn-icon">📋</span> Für DeepSeek kopieren
+                    </button>
+                </div>
             </div>
             <div class="actions">
                 <button class="btn btn-secondary" onclick="extPrevState()">Zurück</button>
@@ -275,19 +301,23 @@
         <section id="state-7" class="state-section">
             <div class="card">
                 <h2>Überarbeitete Lösungen einfügen</h2>
-                <p class="description">Füge die drei überarbeiteten KI-Antworten ein. Jede Antwort enthält: was übernommen wurde, was abgelehnt wurde, und die verbesserte Gesamtlösung.</p>
+                <p class="description">Füge die überarbeiteten KI-Antworten ein (nur KIs die am Cross-Review teilgenommen haben). Nicht gefragte KIs leer lassen.</p>
                 <div class="ai-inputs">
                     <div class="ai-input-group chatgpt">
                         <label>ChatGPT – Überarbeitete Lösung</label>
-                        <textarea id="chatgpt-solution-r2" placeholder="ChatGPT überarbeitete Antwort hier einfügen..."></textarea>
+                        <textarea id="chatgpt-solution-r2" placeholder="ChatGPT überarbeitete Antwort hier einfügen…"></textarea>
                     </div>
                     <div class="ai-input-group claude">
                         <label>Claude – Überarbeitete Lösung</label>
-                        <textarea id="claude-solution-r2" placeholder="Claude überarbeitete Antwort hier einfügen..."></textarea>
+                        <textarea id="claude-solution-r2" placeholder="Claude überarbeitete Antwort hier einfügen…"></textarea>
                     </div>
                     <div class="ai-input-group gemini">
                         <label>Gemini – Überarbeitete Lösung</label>
-                        <textarea id="gemini-solution-r2" placeholder="Gemini überarbeitete Antwort hier einfügen..."></textarea>
+                        <textarea id="gemini-solution-r2" placeholder="Gemini überarbeitete Antwort hier einfügen…"></textarea>
+                    </div>
+                    <div class="ai-input-group deepseek">
+                        <label>DeepSeek – Überarbeitete Lösung</label>
+                        <textarea id="deepseek-solution-r2" placeholder="DeepSeek überarbeitete Antwort hier einfügen… (leer = nicht gefragt)"></textarea>
                     </div>
                 </div>
             </div>
@@ -330,6 +360,6 @@
     <script src="js/prompts.js?v=3.4.5"></script>
     <script src="js/parser.js?v=3.4.5"></script>
     <script src="js/storage.js?v=3.7"></script>
-    <script src="js/extended.js?v=1.1"></script>
+    <script src="js/extended.js?v=1.2"></script>
 </body>
 </html>

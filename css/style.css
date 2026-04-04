@@ -30,6 +30,7 @@
     --chatgpt: #10a37f;
     --claude: #d97706;
     --gemini: #4285f4;
+    --deepseek: #7c3aed;
 
     /* Status Colors */
     --success: #10b981;
@@ -429,6 +430,16 @@ textarea::placeholder {
     box-shadow: 0 4px 12px rgba(66, 133, 244, 0.3);
 }
 
+.btn-deepseek {
+    background: var(--deepseek);
+    color: white;
+}
+
+.btn-deepseek:hover {
+    background: #6d28d9;
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+}
+
 .btn.copied {
     background: var(--success) !important;
 }
@@ -497,7 +508,7 @@ textarea::placeholder {
 
 @media (min-width: 768px) {
     .ai-inputs {
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     }
 }
 
@@ -523,6 +534,11 @@ textarea::placeholder {
 .ai-input-group.gemini label {
     border-color: var(--gemini);
     color: var(--gemini);
+}
+
+.ai-input-group.deepseek label {
+    border-color: var(--deepseek);
+    color: var(--deepseek);
 }
 
 .ai-input-group textarea {
@@ -602,6 +618,7 @@ textarea::placeholder {
 .source-badge.chatgpt { background: var(--chatgpt); }
 .source-badge.claude { background: var(--claude); }
 .source-badge.gemini { background: var(--gemini); }
+.source-badge.deepseek { background: var(--deepseek); }
 
 .question-item textarea {
     min-height: 80px;
