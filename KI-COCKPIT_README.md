@@ -496,89 +496,100 @@ function handleSaveSession(payload) {
 }
 ```
 
-### handleDeduplicateQuestions (V3.0: Robuste JSON-Extraktion)
+### handleDeduplicateQuestions (V3.6: Semantische Deduplizierung)
 
 ```javascript
 function handleDeduplicateQuestions(data) {
   const apiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${SETTINGS.MODEL}:generateContent?key=${apiKey}`;
+
+  const MAX_CONTEXT_LENGTH = 50000;
+  let problemContext = data.originalProblem || "";
+  if (problemContext.length > MAX_CONTEXT_LENGTH) {
+    problemContext = problemContext.substring(0, MAX_CONTEXT_LENGTH) + "... [gekürzt]";
+  }
+
+  const chatgptQs = (data.questions.chatgpt || []).map((q, i) => ({ id: `C${i+1}`, text: q, source: "ChatGPT" }));
+  const claudeQs  = (data.questions.claude  || []).map((q, i) => ({ id: `L${i+1}`, text: q, source: "Claude"  }));
+  const geminiQs  = (data.questions.gemini  || []).map((q, i) => ({ id: `G${i+1}`, text: q, source: "Gemini"  }));
+  const allQuestions = [...chatgptQs, ...claudeQs, ...geminiQs];
+  const totalInput = allQuestions.length;
 
   const prompt = `
-Du bist ein erfahrener Strategieberater. Vor dir liegen Listen von Rückfragen dreier KI-Assistenten zu folgendem Problem:
+Du bist Experte für die Analyse von Klärungsfragen. Drei KI-Assistenten haben zu einem Problem jeweils Rückfragen gestellt.
 
-[ORIGINAL_PROBLEM]
-${data.originalProblem}
-[/ORIGINAL_PROBLEM]
+[PROBLEM KONTEXT]
+${problemContext}
+[/PROBLEM KONTEXT]
 
-[CHATGPT_QUESTIONS]
-${(data.questions.chatgpt || []).join('\n')}
-[/CHATGPT_QUESTIONS]
+[EINGANGS-LISTE: ${totalInput} Fragen]
+${allQuestions.map(q => `[${q.id}] (${q.source}): ${q.text}`).join('\n')}
+[/EINGANGS-LISTE]
 
-[CLAUDE_QUESTIONS]
-${(data.questions.claude || []).join('\n')}
-[/CLAUDE_QUESTIONS]
+[ENTSCHEIDUNGSREGELN]
 
-[GEMINI_QUESTIONS]
-${(data.questions.gemini || []).join('\n')}
-[/GEMINI_QUESTIONS]
+ZUSAMMENFASSEN – wenn Fragen dieselbe Information erfragen, nur anders formuliert:
+- "Nutzt du AID-System?" + "Nutzt du Closed-Loop?" + "Nutzt du automatisierte Funktionen?" → EINE Frage
+- "Welche Sportart?" + "Welcher Sport und wie lange?" + "Ausdauer oder Kraft?" → EINE Frage
+- Faustregel: Kann der Nutzer beide Fragen mit einer einzigen Antwort beantworten? → Zusammenfassen.
 
-AUFGABE:
-1. Identifiziere semantisch gleiche oder sehr ähnliche Fragen
-2. Wähle die präziseste Formulierung oder kombiniere zu einer besseren Frage
-3. Weise jeder Frage eine Priorität zu (P1 = kritisch, P2 = wichtig, P3 = optional)
-4. Gib an, welche KI(s) diese Frage gestellt haben
+GETRENNT HALTEN – wenn Fragen verschiedene Aspekte ansprechen:
+- "Wann tritt die Hypo auf?" ≠ "Wie tief fallen die Werte?"
+- "Insulindosis anpassen?" ≠ "Kohlenhydrate essen?"
+- Faustregel: Braucht der Nutzer zwei separate Antworten? → Getrennt lassen.
 
-WICHTIG: Antworte NUR mit einem JSON-Array, KEIN Text davor oder danach!
+ZIEL: 50–70% der Eingangsfragen behalten. Wähle bei Zusammenfassungen die präziseste Formulierung.
 
-[OUTPUT]
+[OUTPUT FORMAT]
+Antworte NUR mit einem JSON-Array, kein Text davor oder danach:
 [
   {
-    "question": "Die deduplizierte Frage",
+    "question": "Beste konsolidierte Formulierung",
     "priority": "P1|P2|P3",
     "sources": ["ChatGPT", "Claude", "Gemini"],
-    "reason": "Kurze Begründung"
+    "mapped_ids": ["C5", "L2", "G1"],
+    "reason": "Zusammengefasst weil: / Behalten weil:"
   }
 ]
-[/OUTPUT]
 `;
 
   const payload = {
     contents: [{ parts: [{ text: prompt }] }],
     generationConfig: {
-      temperature: 0.2
+      temperature: 0.1,
+      responseMimeType: "application/json"
     }
   };
 
-  const response = UrlFetchApp.fetch(url, {
-    method: "post",
-    contentType: "application/json",
-    payload: JSON.stringify(payload),
-    muteHttpExceptions: true
-  });
-
-  const result = JSON.parse(response.getContentText());
-
-  if (result.error) {
-    return errorResponse(result.error.message);
-  }
-
-  const rawText = result.candidates[0].content.parts[0].text;
-
-  // V3.0: Robuste JSON-Extraktion für "chatty" Gemini 3 Modelle
-  let questions;
   try {
-    questions = JSON.parse(rawText);
-  } catch (e) {
-    // Versuche JSON-Array aus Text zu extrahieren
-    const jsonMatch = rawText.match(/\[\s*\{[\s\S]*\}\s*\]/);
-    if (jsonMatch) {
-      questions = JSON.parse(jsonMatch[0]);
-    } else {
-      return errorResponse('Could not parse Gemini response: ' + rawText.substring(0, 200));
-    }
-  }
+    const response = UrlFetchApp.fetch(url, {
+      method: "post",
+      contentType: "application/json",
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    });
 
-  return successResponse({ questions: questions });
+    const result = JSON.parse(response.getContentText());
+    if (result.error) return errorResponse("API Error: " + result.error.message);
+    if (!result.candidates || !result.candidates[0].content) return errorResponse("Leere Antwort von KI");
+
+    let rawText = result.candidates[0].content.parts[0].text.trim();
+
+    let cleanArray;
+    try {
+      const jsonMatch = rawText.match(/\[\s*\{[\s\S]*\}\s*\]/);
+      cleanArray = JSON.parse(jsonMatch ? jsonMatch[0] : rawText);
+    } catch (parseError) {
+      cleanArray = JSON.parse(rawText);
+    }
+
+    console.log(`Deduplication: ${totalInput} → ${cleanArray.length} Fragen`);
+    return successResponse(cleanArray);
+
+  } catch (e) {
+    console.error("Deduplication Error: " + e.toString());
+    return errorResponse("Backend Fehler: " + e.toString());
+  }
 }
 ```
 
@@ -905,6 +916,11 @@ function generateSessionMarkdown(session) {
 | | | - Neues Feld `mapped_ids` zeigt Zusammenfassungen |
 | | | - Temperature 0.0 für maximale Präzision |
 | | | - Test: 15 Input → 10 Output (5 echte Duplikate erkannt) ✅ |
+| **V3.6.1** | **04.04.2026** | **Deduplizierung: Semantische Zusammenfassung (nicht nur exakte Duplikate)** |
+| | | - Neuer Prompt mit klaren ZUSAMMENFASSEN/GETRENNT-HALTEN Regeln |
+| | | - Zielkorridor 50–70% (verhindert beide Extreme: 23→23 und 22→6) |
+| | | - Beispiele im Prompt für Grenzfälle |
+| | | - Temperature 0.1, responseMimeType: application/json |
 | **V3.6** | **04.04.2026** | **Bugfix: Gemini-Modell + Drive-Speicher-Diagnose + Dropdown-Duplikate** |
 | | | - **KRITISCH (Backend):** `gemini-3-pro-preview` existiert nicht → auf `gemini-2.0-flash` umstellen |
 | | | - **Frontend:** `saveSession()` prüft jetzt wirklich die Backend-Antwort |
