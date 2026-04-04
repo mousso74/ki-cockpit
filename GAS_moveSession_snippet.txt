@@ -1,0 +1,90 @@
+/* ============================================================
+   KI-Cockpit GAS Backend – Ergänzung für V4.0 (Archiv-Redesign)
+
+   SCHRITT 1: In doPost() den neuen case einfügen
+   (dort wo die anderen cases wie 'saveSession', 'deleteSession' stehen)
+   ============================================================ */
+
+// --- In der switch(action)-Anweisung von doPost() hinzufügen: ---
+
+case 'moveSession':
+  return handleMoveSession(data);
+
+
+/* ============================================================
+   SCHRITT 2: Neue Funktion handleMoveSession() hinzufügen
+   (z.B. direkt nach handleDeleteSession())
+   ============================================================ */
+
+/**
+ * Verschiebt eine Session-Datei in einen anderen Kategorie-/Projekt-Ordner
+ * und aktualisiert die Metadaten in der JSON-Datei.
+ *
+ * Erwartet:
+ *   data.id       – Google Drive File-ID der Session
+ *   data.category – neue Kategorie ('privat' oder 'geschäftlich')
+ *   data.project  – neuer Projektname (String)
+ */
+function handleMoveSession(data) {
+  try {
+    var id          = data.id;
+    var newCategory = data.category;
+    var newProject  = data.project;
+
+    // Validierung
+    if (!id || !newCategory || !newProject) {
+      return createResponse({ status: 'error', message: 'id, category und project sind erforderlich' });
+    }
+
+    // Datei holen
+    var file = DriveApp.getFileById(id);
+
+    // Ziel-Ordner holen / anlegen: KI-Cockpit-Archiv → category → project
+    var rootFolder     = getOrCreateFolder(DriveApp.getRootFolder(), 'KI-Cockpit-Archiv');
+    var categoryFolder = getOrCreateFolder(rootFolder, newCategory);
+    var projectFolder  = getOrCreateFolder(categoryFolder, newProject);
+
+    // Datei verschieben
+    file.moveTo(projectFolder);
+
+    // JSON-Inhalt aktualisieren (category & project)
+    try {
+      var content       = JSON.parse(file.getBlob().getDataAsString());
+      content.category  = newCategory;
+      content.project   = newProject;
+      file.setContent(JSON.stringify(content, null, 2));
+    } catch (parseErr) {
+      // Wenn der Inhalt nicht parsebar ist, trotzdem Erfolg zurückgeben
+      console.warn('moveSession: JSON-Update fehlgeschlagen, Datei wurde aber verschoben.', parseErr);
+    }
+
+    return createResponse({
+      status: 'success',
+      message: 'Session erfolgreich verschoben',
+      data: { id: file.getId(), name: file.getName(), category: newCategory, project: newProject }
+    });
+
+  } catch (e) {
+    console.error('handleMoveSession Fehler:', e);
+    return createResponse({ status: 'error', message: 'Fehler beim Verschieben: ' + e.message });
+  }
+}
+
+
+/* ============================================================
+   HINWEIS: getOrCreateFolder() ist bereits in deinem GAS-Code
+   vorhanden (wird von handleSaveSession() verwendet).
+   Falls nicht, hier der Code:
+   ============================================================ */
+
+// function getOrCreateFolder(parent, name) {
+//   var folders = parent.getFoldersByName(name);
+//   if (folders.hasNext()) return folders.next();
+//   return parent.createFolder(name);
+// }
+
+
+/* ============================================================
+   Nach dem Einfügen: GAS neu deployen!
+   → Bereitstellen → Bereitstellung verwalten → Version erhöhen
+   ============================================================ */

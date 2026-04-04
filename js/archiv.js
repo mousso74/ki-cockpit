@@ -1,455 +1,498 @@
-/**
- * KI-Cockpit Archiv - JavaScript
- * Features: Filter, Suche, Session-Details, Löschen
- */
+/* ========================================
+   KI-Cockpit Archiv V4.0
+   Two-panel layout: filter + list | detail preview
+   ======================================== */
 
-// ========================================
-// Globale Variablen
-// ========================================
-
+// ---- State ----
 let allSessions = [];
-let filteredSessions = [];
-let currentSessionId = null;
-let currentSessionTitle = null;
 let projects = { geschäftlich: [], privat: [] };
+let currentSession = null;       // Full session data shown in right panel
+let currentSessionId = null;     // ID of highlighted session in list
+
 
 // ========================================
-// Initialisierung
+// INIT
 // ========================================
 
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('[archiv.js] Archiv wird initialisiert');
+    console.log('[archiv.js] V4.0 init');
 
-    // Event Listener für Filter
-    setupFilterListeners();
-
-    // Daten laden
-    await loadProjects();
-    await loadSessions();
-});
-
-/**
- * Richtet alle Filter Event Listener ein
- */
-function setupFilterListeners() {
-    // Suche (mit Debounce)
-    const searchInput = document.getElementById('searchInput');
-    let searchTimeout;
-    searchInput.addEventListener('input', () => {
-        clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(applyFilters, 300);
-    });
-
-    // Kategorie-Filter
-    document.getElementById('filterCategory').addEventListener('change', (e) => {
-        updateProjectDropdown(e.target.value);
-        applyFilters();
-    });
-
-    // Projekt-Filter
+    // Filter listeners
+    document.getElementById('filterCategory').addEventListener('change', onCategoryChange);
     document.getElementById('filterProject').addEventListener('change', applyFilters);
 
-    // Datum-Filter
-    document.getElementById('filterDateFrom').addEventListener('change', applyFilters);
-    document.getElementById('filterDateTo').addEventListener('change', applyFilters);
+    // Load data
+    await loadData();
 
-    // Reset Button
-    document.getElementById('resetFilters').addEventListener('click', resetFilters);
+    // If opened via ?session=ID (e.g. via "Laden" button in another tab), auto-preview
+    const params = new URLSearchParams(window.location.search);
+    const sessionParam = params.get('session');
+    if (sessionParam) {
+        await previewSession(sessionParam);
+    }
+});
 
-    // Keyboard Shortcuts
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-            closeModal();
-            closeDeleteModal();
-        }
-    });
+async function loadData() {
+    await Promise.all([loadProjects(), loadSessions()]);
 }
 
+async function refreshSessions() {
+    allSessions = [];
+    currentSession = null;
+    currentSessionId = null;
+
+    // Reset right panel
+    showRightPanel('placeholder');
+
+    await loadData();
+}
+
+
 // ========================================
-// Daten laden
+// PROJECTS
 // ========================================
 
-/**
- * Lädt alle Projekte vom Backend
- */
 async function loadProjects() {
     try {
         const result = await getProjects();
-        if (result.status === 'success' && result.data) {
+        if (result && result.status === 'success' && result.data) {
             projects = result.data;
-            console.log('[archiv.js] Projekte geladen:', projects);
+            updateProjectDropdown();
         }
-    } catch (error) {
-        console.error('[archiv.js] Fehler beim Laden der Projekte:', error);
+    } catch (e) {
+        console.warn('[archiv.js] Projekte konnten nicht geladen werden:', e.message);
     }
 }
 
-/**
- * Lädt alle Sessions vom Backend
- */
+function onCategoryChange() {
+    updateProjectDropdown();
+    applyFilters();
+}
+
+function updateProjectDropdown() {
+    const category = document.getElementById('filterCategory').value;
+    const select = document.getElementById('filterProject');
+
+    select.innerHTML = '<option value="">Alle Projekte</option>';
+
+    const list = category
+        ? (projects[category] || [])
+        : [...new Set([...(projects.geschäftlich || []), ...(projects.privat || [])])].sort();
+
+    list.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p;
+        opt.textContent = p;
+        select.appendChild(opt);
+    });
+}
+
+
+// ========================================
+// SESSIONS LIST
+// ========================================
+
 async function loadSessions() {
-    const sessionList = document.getElementById('sessionList');
+    const listEl = document.getElementById('sessionList');
+    listEl.innerHTML = '<div class="loading-indicator"><div class="spinner"></div><span>Wird geladen…</span></div>';
 
     try {
         const result = await listSessions();
 
-        if (result.status === 'success' && Array.isArray(result.data)) {
+        if (result && result.status === 'success' && Array.isArray(result.data)) {
             allSessions = result.data;
             console.log('[archiv.js] Sessions geladen:', allSessions.length);
-
-            // Initial alle anzeigen
-            filteredSessions = [...allSessions];
-            renderSessions();
+            applyFilters();
         } else {
-            showEmptyState();
+            const msg = (result && result.message) ? result.message : 'Unbekannter Fehler';
+            listEl.innerHTML = `<div class="error-state">⚠️ Fehler beim Laden:<br>${escapeHtml(msg)}</div>`;
         }
-    } catch (error) {
-        console.error('[archiv.js] Fehler beim Laden der Sessions:', error);
-        sessionList.innerHTML = `
-            <div class="loading-state">
-                <p style="color: #ef4444;">Fehler beim Laden der Sessions</p>
-                <p>${error.message}</p>
-            </div>
-        `;
+    } catch (e) {
+        console.error('[archiv.js] Fehler beim Laden:', e);
+        listEl.innerHTML = `<div class="error-state">⚠️ Verbindungsfehler:<br>${escapeHtml(e.message)}</div>`;
     }
 }
 
-// ========================================
-// Filter-Funktionen
-// ========================================
-
-/**
- * Aktualisiert das Projekt-Dropdown basierend auf der Kategorie
- */
-function updateProjectDropdown(category) {
-    const projectSelect = document.getElementById('filterProject');
-    projectSelect.innerHTML = '<option value="">Alle Projekte</option>';
-
-    if (category && projects[category]) {
-        projects[category].forEach(project => {
-            const option = document.createElement('option');
-            option.value = project;
-            option.textContent = project;
-            projectSelect.appendChild(option);
-        });
-    } else {
-        // Alle Projekte aus beiden Kategorien
-        const allProjects = [...new Set([
-            ...(projects.geschäftlich || []),
-            ...(projects.privat || [])
-        ])].sort();
-
-        allProjects.forEach(project => {
-            const option = document.createElement('option');
-            option.value = project;
-            option.textContent = project;
-            projectSelect.appendChild(option);
-        });
-    }
-}
-
-/**
- * Wendet alle aktiven Filter an
- */
 function applyFilters() {
-    const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
     const category = document.getElementById('filterCategory').value;
-    const project = document.getElementById('filterProject').value;
-    const dateFrom = document.getElementById('filterDateFrom').value;
-    const dateTo = document.getElementById('filterDateTo').value;
+    const project  = document.getElementById('filterProject').value;
 
-    filteredSessions = allSessions.filter(session => {
-        // Suche in Titel und Problem
-        if (searchTerm) {
-            const titleMatch = (session.displayTitle || '').toLowerCase().includes(searchTerm);
-            const problemMatch = (session.problem || '').toLowerCase().includes(searchTerm);
-            if (!titleMatch && !problemMatch) return false;
-        }
-
-        // Kategorie-Filter
-        if (category && session.category !== category) return false;
-
-        // Projekt-Filter
-        if (project && session.project !== project) return false;
-
-        // Datum von
-        if (dateFrom) {
-            const sessionDate = new Date(session.timestamp.replace('_', 'T'));
-            const fromDate = new Date(dateFrom);
-            if (sessionDate < fromDate) return false;
-        }
-
-        // Datum bis
-        if (dateTo) {
-            const sessionDate = new Date(session.timestamp.replace('_', 'T'));
-            const toDate = new Date(dateTo);
-            toDate.setHours(23, 59, 59); // Ende des Tages
-            if (sessionDate > toDate) return false;
-        }
-
+    const filtered = allSessions.filter(s => {
+        if (category && s.category !== category) return false;
+        if (project  && s.project  !== project)  return false;
         return true;
     });
 
-    console.log('[archiv.js] Filter angewendet:', filteredSessions.length, 'von', allSessions.length);
-    renderSessions();
+    document.getElementById('sessionCount').textContent =
+        `${filtered.length} Session${filtered.length !== 1 ? 's' : ''}`;
+
+    renderList(filtered);
 }
 
-/**
- * Setzt alle Filter zurück
- */
-function resetFilters() {
-    document.getElementById('searchInput').value = '';
-    document.getElementById('filterCategory').value = '';
-    document.getElementById('filterProject').value = '';
-    document.getElementById('filterDateFrom').value = '';
-    document.getElementById('filterDateTo').value = '';
+function renderList(sessions) {
+    const listEl = document.getElementById('sessionList');
 
-    updateProjectDropdown('');
-    filteredSessions = [...allSessions];
-    renderSessions();
-}
-
-// ========================================
-// Rendering
-// ========================================
-
-/**
- * Rendert die Session-Liste
- */
-function renderSessions() {
-    const sessionList = document.getElementById('sessionList');
-    const emptyState = document.getElementById('emptyState');
-    const sessionCount = document.getElementById('sessionCount');
-
-    // Counter aktualisieren
-    sessionCount.textContent = `${filteredSessions.length} Session${filteredSessions.length !== 1 ? 's' : ''}`;
-
-    if (filteredSessions.length === 0) {
-        sessionList.innerHTML = '';
-        emptyState.classList.remove('hidden');
+    if (!sessions.length) {
+        listEl.innerHTML = '<div class="empty-state">📭 Keine Sessions gefunden</div>';
+        updateProjectDatalist();
         return;
     }
 
-    emptyState.classList.add('hidden');
-
-    sessionList.innerHTML = filteredSessions.map(session => `
-        <article class="session-card" onclick="openSession('${session.id}')">
-            <div class="session-card-header">
-                <h3 class="session-card-title">${escapeHtml(session.displayTitle || 'Unbenannte Session')}</h3>
-                <span class="session-card-date">${formatDate(session.timestamp)}</span>
-            </div>
-            <div class="session-card-meta">
-                <span class="badge badge-${session.category || 'privat'}">${session.category || 'privat'}</span>
-                <span class="badge badge-secondary">${escapeHtml(session.project || 'Allgemein')}</span>
-            </div>
-            ${session.problem ? `<p class="session-card-preview">${escapeHtml(truncate(session.problem, 150))}</p>` : ''}
-        </article>
-    `).join('');
+    listEl.innerHTML = sessions.map(s => buildItemHtml(s)).join('');
+    updateProjectDatalist();
 }
 
-/**
- * Zeigt den leeren Zustand an
- */
-function showEmptyState() {
-    document.getElementById('sessionList').innerHTML = '';
-    document.getElementById('emptyState').classList.remove('hidden');
-    document.getElementById('sessionCount').textContent = '0 Sessions';
+function buildItemHtml(s) {
+    const id       = s.id;
+    const title    = escapeHtml(s.displayTitle || s.name || 'Unbenannte Session');
+    const date     = formatDate(s.timestamp);
+    const cat      = s.category || 'privat';
+    const catLabel = cat === 'geschäftlich' ? 'Geschäftlich' : 'Privat';
+    const proj     = escapeHtml(s.project || 'Allgemein');
+    const selPriv  = cat === 'privat'       ? 'selected' : '';
+    const selGes   = cat === 'geschäftlich' ? 'selected' : '';
+
+    return `
+<div class="session-item" id="item-${id}" data-id="${id}">
+  <div class="item-view">
+    <div class="item-info" onclick="previewSession('${id}')">
+      <span class="item-title">${title}</span>
+      <div class="item-meta">
+        <span class="badge badge-${cat}">${catLabel}</span>
+        <span class="badge badge-secondary">${proj}</span>
+        <span class="item-date">${date}</span>
+      </div>
+    </div>
+    <div class="item-actions">
+      <button class="btn-action btn-delete" onclick="deleteItem(event,'${id}')">Löschen</button>
+      <button class="btn-action btn-load"   onclick="loadItem(event,'${id}')">Laden</button>
+      <button class="btn-action btn-edit"   onclick="toggleEdit(event,'${id}')">Bearbeiten</button>
+    </div>
+  </div>
+  <div class="item-edit-form" id="editform-${id}" style="display:none">
+    <div class="edit-fields">
+      <select class="edit-cat" id="editcat-${id}">
+        <option value="privat" ${selPriv}>Privat</option>
+        <option value="geschäftlich" ${selGes}>Geschäftlich</option>
+      </select>
+      <input class="edit-proj" id="editproj-${id}" type="text"
+             value="${escapeHtml(s.project || '')}"
+             placeholder="Projektname"
+             list="allProjectsList">
+    </div>
+    <div class="edit-actions">
+      <button class="btn-action btn-save" onclick="saveEdit(event,'${id}')">✓ Speichern</button>
+      <button class="btn-action btn-cancel" onclick="cancelEdit(event,'${id}')">✕ Abbrechen</button>
+    </div>
+  </div>
+</div>`;
 }
 
+function updateProjectDatalist() {
+    const dl = document.getElementById('allProjectsList');
+    if (!dl) return;
+    const all = [...new Set([...(projects.geschäftlich || []), ...(projects.privat || [])])].sort();
+    dl.innerHTML = all.map(p => `<option value="${escapeHtml(p)}">`).join('');
+}
+
+
 // ========================================
-// Session Detail Modal
+// PREVIEW (right panel)
 // ========================================
 
-/**
- * Öffnet eine Session im Detail-Modal
- */
-async function openSession(sessionId) {
-    console.log('[archiv.js] Öffne Session:', sessionId);
-    currentSessionId = sessionId;
+async function previewSession(id) {
+    // Highlight in list
+    document.querySelectorAll('.session-item').forEach(el => el.classList.remove('active'));
+    const item = document.getElementById(`item-${id}`);
+    if (item) {
+        item.classList.add('active');
+        item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
 
-    const modal = document.getElementById('sessionModal');
-    modal.classList.remove('hidden');
-
-    // Loading State im Modal
-    document.getElementById('modalTitle').textContent = 'Wird geladen...';
-    document.getElementById('modalProblem').textContent = '';
+    currentSessionId = id;
+    showRightPanel('loading');
 
     try {
-        // Session vom Backend laden (getSession aus storage.js)
-        console.log('[archiv.js] Lade Session von Backend...');
-        const result = await getSession(sessionId);
-        console.log('[archiv.js] Backend Antwort:', result);
+        const result = await getSession(id);
 
-        if (result.status === 'success' && result.data) {
-            const session = result.data;
-            currentSessionTitle = session.titleSlug || session.displayTitle || 'Unbenannte Session';
-
-            // Header
-            document.getElementById('modalTitle').textContent = session.titleSlug || 'Session Details';
-
-            // Meta
-            const categoryBadge = document.getElementById('modalCategory');
-            categoryBadge.textContent = session.category || 'privat';
-            categoryBadge.className = `badge badge-${session.category || 'privat'}`;
-
-            document.getElementById('modalProject').textContent = session.project || 'Allgemein';
-            document.getElementById('modalDate').textContent = formatDate(session.timestamp || new Date().toISOString());
-
-            // Problem
-            document.getElementById('modalProblem').textContent = session.problem || 'Kein Problem gespeichert';
-
-            // Fragen
-            const questionsSection = document.getElementById('modalQuestionsSection');
-            const questionsDiv = document.getElementById('modalQuestions');
-            if (session.deduplicatedQuestions && session.deduplicatedQuestions.length > 0) {
-                questionsSection.classList.remove('hidden');
-                questionsDiv.innerHTML = session.deduplicatedQuestions.map((q, i) =>
-                    `<div style="margin-bottom: 0.5rem;"><strong>${i + 1}.</strong> ${escapeHtml(q.question || q)}</div>`
-                ).join('');
-            } else {
-                questionsSection.classList.add('hidden');
-            }
-
-            // KI-Lösungen
-            const solutionsSection = document.getElementById('modalSolutionsSection');
-            if (session.aiSolutions) {
-                solutionsSection.classList.remove('hidden');
-                document.getElementById('modalChatGPT').textContent = session.aiSolutions.chatgpt || 'Keine Antwort';
-                document.getElementById('modalClaude').textContent = session.aiSolutions.claude || 'Keine Antwort';
-                document.getElementById('modalGemini').textContent = session.aiSolutions.gemini || 'Keine Antwort';
-            } else {
-                solutionsSection.classList.add('hidden');
-            }
-
-            // Synthese
-            const synthesisSection = document.getElementById('modalSynthesisSection');
-            if (session.synthesis) {
-                synthesisSection.classList.remove('hidden');
-                const synthesisText = typeof session.synthesis === 'object'
-                    ? session.synthesis.synthesis || JSON.stringify(session.synthesis)
-                    : session.synthesis;
-                document.getElementById('modalSynthesis').textContent = synthesisText;
-            } else {
-                synthesisSection.classList.add('hidden');
-            }
+        if (result && result.status === 'success' && result.data) {
+            currentSession = result.data;
+            renderDetail(result.data);
+            showRightPanel('detail');
         } else {
-            document.getElementById('modalProblem').textContent = 'Fehler beim Laden der Session';
+            showRightPanel('placeholder');
+            showToast('Fehler: ' + ((result && result.message) || 'Unbekannt'), 'error');
         }
-    } catch (error) {
-        console.error('[archiv.js] Fehler beim Laden der Session:', error);
-        document.getElementById('modalProblem').textContent = 'Fehler: ' + error.message;
+    } catch (e) {
+        console.error('[archiv.js] previewSession error:', e);
+        showRightPanel('placeholder');
+        showToast('Verbindungsfehler', 'error');
     }
 }
 
-/**
- * Schließt das Detail-Modal
- */
-function closeModal() {
-    document.getElementById('sessionModal').classList.add('hidden');
-    currentSessionId = null;
-    currentSessionTitle = null;
+function renderDetail(sessionData) {
+    // sessionData may be wrapped: { data: {...} } or flat
+    const d = sessionData.data || sessionData;
+
+    document.getElementById('detailTitle').textContent =
+        d.name || d.titleSlug || 'Session Details';
+
+    const catEl = document.getElementById('detailCategory');
+    const cat   = d.category || 'privat';
+    catEl.textContent = cat === 'geschäftlich' ? 'Geschäftlich' : 'Privat';
+    catEl.className   = `badge badge-${cat}`;
+
+    document.getElementById('detailProject').textContent = d.project || 'Allgemein';
+    document.getElementById('detailDate').textContent    = formatDate(d.timestamp);
+    document.getElementById('detailProblem').value       = d.problem || '';
+    document.getElementById('detailSynthesis').value     = extractSynthesisText(d.synthesis);
 }
+
 
 // ========================================
-// Löschen-Funktionen
+// ITEM ACTIONS
 // ========================================
 
-/**
- * Öffnet den Lösch-Bestätigungs-Dialog
- */
-function confirmDelete() {
-    if (!currentSessionId) return;
-
-    document.getElementById('deleteSessionTitle').textContent = currentSessionTitle;
-    document.getElementById('deleteModal').classList.remove('hidden');
+/** Open session in new tab (archive stays open) */
+function loadItem(event, id) {
+    event.stopPropagation();
+    window.open(`archiv.html?session=${encodeURIComponent(id)}`, '_blank');
 }
 
-/**
- * Schließt den Lösch-Dialog
- */
-function closeDeleteModal() {
-    document.getElementById('deleteModal').classList.add('hidden');
+/** Toggle inline edit form */
+function toggleEdit(event, id) {
+    event.stopPropagation();
+    const form = document.getElementById(`editform-${id}`);
+    form.style.display = form.style.display === 'none' ? 'block' : 'none';
 }
 
-/**
- * Führt das Löschen aus
- */
-async function executeDelete() {
-    if (!currentSessionId) return;
+function cancelEdit(event, id) {
+    event.stopPropagation();
+    document.getElementById(`editform-${id}`).style.display = 'none';
+}
 
-    const deleteBtn = document.querySelector('#deleteModal .btn-danger');
-    deleteBtn.textContent = 'Wird gelöscht...';
-    deleteBtn.disabled = true;
+/** Save category/project and move file on Google Drive */
+async function saveEdit(event, id) {
+    event.stopPropagation();
+
+    const newCategory = document.getElementById(`editcat-${id}`).value;
+    const newProject  = document.getElementById(`editproj-${id}`).value.trim();
+
+    if (!newProject) {
+        showToast('Bitte Projektname eingeben', 'warning');
+        return;
+    }
+
+    const btn = event.currentTarget;
+    btn.textContent = 'Speichert…';
+    btn.disabled    = true;
 
     try {
-        const result = await deleteSession(currentSessionId);
+        const response = await fetch(BACKEND_URL, {
+            method: 'POST',
+            redirect: 'follow',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify({ action: 'moveSession', id, category: newCategory, project: newProject })
+        });
+        const result = await response.json();
 
         if (result.status === 'success') {
-            // Session aus lokaler Liste entfernen
-            allSessions = allSessions.filter(s => s.id !== currentSessionId);
-            filteredSessions = filteredSessions.filter(s => s.id !== currentSessionId);
+            showToast('Session verschoben ✓', 'success');
+            document.getElementById(`editform-${id}`).style.display = 'none';
 
-            // UI aktualisieren
-            closeDeleteModal();
-            closeModal();
-            renderSessions();
+            // Update local data
+            const s = allSessions.find(x => x.id === id);
+            if (s) { s.category = newCategory; s.project = newProject; }
 
-            showToast('Session erfolgreich gelöscht', 'success');
+            // Patch DOM badges without full re-render
+            const itemEl = document.getElementById(`item-${id}`);
+            if (itemEl) {
+                const catBadge  = itemEl.querySelector('.item-meta .badge:first-child');
+                const projBadge = itemEl.querySelector('.item-meta .badge-secondary');
+                if (catBadge)  { catBadge.className   = `badge badge-${newCategory}`; catBadge.textContent = newCategory === 'geschäftlich' ? 'Geschäftlich' : 'Privat'; }
+                if (projBadge) { projBadge.textContent = newProject; }
+            }
+
+            // Refresh right panel if this session is currently displayed
+            if (currentSession) {
+                const d = currentSession.data || currentSession;
+                if (d.id === id || currentSession.id === id) {
+                    d.category = newCategory;
+                    d.project  = newProject;
+                    renderDetail(currentSession);
+                }
+            }
         } else {
-            showToast('Fehler beim Löschen: ' + (result.message || 'Unbekannter Fehler'), 'error');
+            showToast('Fehler: ' + (result.message || 'Unbekannt'), 'error');
         }
-    } catch (error) {
-        console.error('[archiv.js] Fehler beim Löschen:', error);
-        showToast('Fehler beim Löschen: ' + error.message, 'error');
+    } catch (e) {
+        console.error('[archiv.js] saveEdit error:', e);
+        showToast('Verbindungsfehler', 'error');
     } finally {
-        deleteBtn.textContent = 'Ja, endgültig löschen';
-        deleteBtn.disabled = false;
+        btn.textContent = '✓ Speichern';
+        btn.disabled    = false;
     }
 }
 
-// ========================================
-// Hilfsfunktionen
-// ========================================
+/** Delete session from Google Drive */
+async function deleteItem(event, id) {
+    event.stopPropagation();
 
-/**
- * Formatiert ein Datum für die Anzeige
- */
-function formatDate(timestamp) {
-    if (!timestamp) return '';
+    const session  = allSessions.find(s => s.id === id);
+    const titleStr = session ? (session.displayTitle || session.name || 'diese Session') : 'diese Session';
+
+    if (!confirm(`"${titleStr}" wirklich löschen?\n\nDie Datei wird in Google Drive in den Papierkorb verschoben.`)) return;
 
     try {
-        // Format: "2024-01-15_14-30" oder ISO String
-        const dateStr = timestamp.replace('_', 'T').replace(/-(\d{2})$/, ':$1');
-        const date = new Date(dateStr);
-
-        if (isNaN(date.getTime())) {
-            return timestamp; // Fallback: Original zurückgeben
-        }
-
-        return date.toLocaleDateString('de-DE', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
+        const response = await fetch(BACKEND_URL, {
+            method: 'POST',
+            redirect: 'follow',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify({ action: 'deleteSession', id })
         });
+        const result = await response.json();
+
+        if (result.status === 'success') {
+            allSessions = allSessions.filter(s => s.id !== id);
+            applyFilters();
+
+            // Clear right panel if it was showing this session
+            if (currentSessionId === id) {
+                currentSession   = null;
+                currentSessionId = null;
+                showRightPanel('placeholder');
+            }
+
+            showToast('Session gelöscht', 'success');
+        } else {
+            showToast('Fehler: ' + (result.message || 'Unbekannt'), 'error');
+        }
     } catch (e) {
-        return timestamp;
+        console.error('[archiv.js] deleteItem error:', e);
+        showToast('Verbindungsfehler', 'error');
     }
 }
 
-/**
- * Kürzt Text auf eine maximale Länge
- */
-function truncate(text, maxLength) {
-    if (!text) return '';
-    if (text.length <= maxLength) return text;
-    return text.substring(0, maxLength) + '...';
+
+// ========================================
+// COPY ACTIONS
+// ========================================
+
+function copyAsMarkdown() {
+    if (!currentSession) return;
+    const d  = currentSession.data || currentSession;
+    const md = buildMarkdown(d);
+    navigator.clipboard.writeText(md)
+        .then(() => showToast('Markdown kopiert ✓', 'success'))
+        .catch(() => showToast('Kopieren fehlgeschlagen', 'error'));
 }
 
-/**
- * Escaped HTML für sichere Ausgabe
- */
+function copyAsTxt() {
+    if (!currentSession) return;
+    const d   = currentSession.data || currentSession;
+    const txt = buildTxt(d);
+    navigator.clipboard.writeText(txt)
+        .then(() => showToast('Text kopiert ✓', 'success'))
+        .catch(() => showToast('Kopieren fehlgeschlagen', 'error'));
+}
+
+function buildMarkdown(d) {
+    const title    = d.name || 'Session';
+    const date     = formatDate(d.timestamp);
+    const problem  = d.problem || '';
+    const synthesis = extractSynthesisText(d.synthesis);
+
+    let md = `# ${title}\n\n`;
+    md += `**Kategorie:** ${d.category || 'privat'} | **Projekt:** ${d.project || 'Allgemein'} | **Datum:** ${date}\n\n`;
+    md += `---\n\n## Problemstellung\n\n${problem}\n\n`;
+
+    // Q&A
+    const questions = d.deduplicatedQuestions || [];
+    const answers   = d.answers || [];
+    if (questions.length > 0) {
+        md += `## Fragen & Antworten\n\n`;
+        questions.forEach((q, i) => {
+            const qText = typeof q === 'string' ? q : (q.question || String(q));
+            md += `**${i + 1}. ${qText}**\n${answers[i] || '–'}\n\n`;
+        });
+    }
+
+    // KI Solutions
+    const phase2 = d.phase2Outputs || {};
+    if (phase2.chatgpt || phase2.claude || phase2.gemini) {
+        md += `## KI-Lösungen\n\n`;
+        if (phase2.chatgpt) md += `### ChatGPT\n${phase2.chatgpt}\n\n`;
+        if (phase2.claude)  md += `### Claude\n${phase2.claude}\n\n`;
+        if (phase2.gemini)  md += `### Gemini\n${phase2.gemini}\n\n`;
+    }
+
+    md += `## Synthese\n\n${synthesis}\n\n---\n*Exportiert aus Asinito KI-Cockpit*`;
+    return md;
+}
+
+function buildTxt(d) {
+    const title    = d.name || 'Session';
+    const date     = formatDate(d.timestamp);
+    const problem  = d.problem || '';
+    const synthesis = extractSynthesisText(d.synthesis);
+
+    const line = '─'.repeat(50);
+    let txt = `${title}\n${line}\n`;
+    txt += `Kategorie: ${d.category || 'privat'} | Projekt: ${d.project || 'Allgemein'} | Datum: ${date}\n\n`;
+    txt += `PROBLEMSTELLUNG\n${line}\n${problem}\n\n`;
+    txt += `SYNTHESE\n${line}\n${synthesis}\n\n`;
+    txt += `${line}\nExportiert aus Asinito KI-Cockpit`;
+    return txt;
+}
+
+
+// ========================================
+// RIGHT PANEL VISIBILITY
+// ========================================
+
+function showRightPanel(mode) {
+    // mode: 'placeholder' | 'loading' | 'detail'
+    const placeholder = document.getElementById('rightPlaceholder');
+    const loading     = document.getElementById('rightLoading');
+    const detail      = document.getElementById('sessionDetail');
+
+    placeholder.classList.toggle('hidden', mode !== 'placeholder');
+    loading.classList.toggle('hidden',     mode !== 'loading');
+    detail.classList.toggle('hidden',      mode !== 'detail');
+}
+
+
+// ========================================
+// HELPERS
+// ========================================
+
+function extractSynthesisText(synthesis) {
+    if (!synthesis) return 'Keine Synthese vorhanden';
+
+    if (typeof synthesis === 'string') {
+        try {
+            const p = JSON.parse(synthesis);
+            return p.data?.synthesis || p.synthesis || synthesis;
+        } catch (e) { return synthesis; }
+    }
+
+    if (typeof synthesis === 'object') {
+        return synthesis.data?.synthesis || synthesis.synthesis || synthesis.text
+            || JSON.stringify(synthesis, null, 2);
+    }
+
+    return String(synthesis);
+}
+
+function formatDate(ts) {
+    if (!ts) return '';
+    try {
+        const d = new Date(typeof ts === 'string' ? ts.replace('_', 'T') : ts);
+        if (isNaN(d.getTime())) return String(ts);
+        return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    } catch (e) { return String(ts); }
+}
+
 function escapeHtml(text) {
     if (!text) return '';
     const div = document.createElement('div');
@@ -457,15 +500,11 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-/**
- * Zeigt eine Toast-Nachricht an
- */
 function showToast(message, type = 'success') {
     const toast = document.getElementById('toast');
     toast.textContent = message;
-    toast.className = `toast ${type}`;
-
-    setTimeout(() => {
-        toast.classList.add('hidden');
-    }, 3000);
+    toast.className   = `toast ${type}`;
+    toast.classList.remove('hidden');
+    const duration = (type === 'error' || type === 'warning') ? 8000 : 3000;
+    setTimeout(() => toast.classList.add('hidden'), duration);
 }
