@@ -24,6 +24,7 @@
         </div>
         <nav class="header-nav">
             <a href="index.html" class="nav-link active">Home</a>
+            <a href="extended.html" class="nav-link">Erweitert</a>
             <a href="archiv.html" class="nav-link">Archiv</a>
         </nav>
     </header>
@@ -66,11 +67,18 @@
             <div class="card">
                 <h2>Template auswählen</h2>
                 <div class="template-options">
-                    <label class="template-option selected">
+                    <label class="template-option selected" id="tpl-questions">
                         <input type="radio" name="template" value="questions" checked>
                         <span class="template-card">
                             <strong>Fragen-Analyse</strong>
-                            <small>KIs stellen klärende Fragen</small>
+                            <small>KIs stellen klärende Fragen, dann eine Lösungsrunde</small>
+                        </span>
+                    </label>
+                    <label class="template-option" id="tpl-crossover">
+                        <input type="radio" name="template" value="crossover">
+                        <span class="template-card">
+                            <strong>Cross-Over-Analyse</strong>
+                            <small>Wie Fragen-Analyse + KIs begutachten gegenseitig ihre Antworten</small>
                         </span>
                     </label>
                 </div>
@@ -239,6 +247,15 @@
     <script src="js/prompts.js?v=3.4.5"></script>
     <script src="js/parser.js?v=3.4.5"></script>
     <script src="js/storage.js?v=3.4.5"></script>
-    <script src="js/app.js?v=3.4.5"></script>
+    <script src="js/app.js?v=3.5.0"></script>
+    <script>
+        // Keep template-option .selected class in sync
+        document.querySelectorAll('input[name="template"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                document.querySelectorAll('.template-option').forEach(l => l.classList.remove('selected'));
+                radio.closest('.template-option')?.classList.add('selected');
+            });
+        });
+    </script>
 </body>
 </html>

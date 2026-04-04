@@ -306,6 +306,25 @@ function generatePrompts() {
         return;
     }
 
+    // Check selected template
+    const selectedTemplate = document.querySelector('input[name="template"]:checked')?.value || 'questions';
+
+    // ── Cross-Over template: hand off to extended.html ──
+    if (selectedTemplate === 'crossover') {
+        try {
+            sessionStorage.setItem('ki_handoff', JSON.stringify({
+                category:    session.category,
+                project:     session.project,
+                sessionTitle: document.getElementById('sessionTitle').value.trim(),
+                problem:     problemText
+            }));
+        } catch (e) {
+            console.warn('[app.js] sessionStorage not available, using URL params fallback');
+        }
+        window.location.href = 'extended.html';
+        return;
+    }
+
     console.log('[app.js] Generating Phase 1 prompts');
 
     // Save to session (V3.4: category and project already set above)

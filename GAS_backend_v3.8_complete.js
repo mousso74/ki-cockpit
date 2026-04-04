@@ -1,8 +1,11 @@
 /**
- * KI-Cockpit Backend V3.8
+ * KI-Cockpit Backend V3.8.1
  * Engine: Gemini 2.5 Flash
- * Changelog V3.8: renameSession Action hinzugefügt
- *                 (ändert Titel in JSON-Inhalt + Dateinamen)
+ * Changelog V3.8:   renameSession Action hinzugefügt
+ *                   (ändert Titel in JSON-Inhalt + Dateinamen)
+ * Changelog V3.8.1: handleListSessions liest "name" aus JSON-Inhalt
+ *                   statt aus dem Dateinamen → Anzeige bleibt nach
+ *                   Umbenennung korrekt synchronisiert
  */
 
 const SETTINGS = {
@@ -393,11 +396,24 @@ function handleListSessions() {
       while (files.hasNext()) {
         const file = files.next();
         if (file.getName().endsWith(".json")) {
-          const parts = file.getName().replace(".json", "").split("__");
+          const parts     = file.getName().replace(".json", "").split("__");
+          const slugTitle = parts.length > 1 ? parts[1] : "Unbenannte Session";
+
+          // Bevorzuge den gespeicherten "name" aus dem JSON-Inhalt (korrekt nach Umbenennungen)
+          let displayTitle = slugTitle;
+          try {
+            const content = JSON.parse(file.getBlob().getDataAsString());
+            if (content.name && content.name.trim()) {
+              displayTitle = content.name.trim();
+            }
+          } catch (readErr) {
+            // Fallback auf Slug-Titel wenn JSON nicht lesbar
+          }
+
           allFiles.push({
             id:           file.getId(),
             fileName:     file.getName(),
-            displayTitle: parts.length > 1 ? parts[1] : "Unbenannte Session",
+            displayTitle: displayTitle,
             timestamp:    parts[0],
             date:         file.getDateCreated(),
             category:     category,

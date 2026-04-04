@@ -1,0 +1,202 @@
+/* ========================================
+   Asinito Extended V1.0 – Stylesheet
+   9-State Cross-Review Template
+   ======================================== */
+
+/* ---- Flow Overview (State 0) ---- */
+
+.flow-overview {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+
+.flow-step {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem 1rem;
+    border-radius: var(--border-radius);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    transition: var(--transition);
+}
+
+.flow-step.done {
+    color: var(--success);
+    border-color: rgba(16, 185, 129, 0.3);
+    background: rgba(16, 185, 129, 0.05);
+}
+
+.flow-step.highlight {
+    color: var(--primary);
+    border-color: rgba(255, 107, 54, 0.35);
+    background: var(--primary-light);
+    font-weight: 600;
+}
+
+/* ---- Cross-Review Tabs (State 6) ---- */
+
+.cross-review-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 0;
+}
+
+.cr-tab {
+    padding: 0.55rem 1.25rem;
+    border: none;
+    background: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    border-radius: var(--border-radius) var(--border-radius) 0 0;
+    transition: var(--transition);
+}
+
+.cr-tab:hover {
+    color: var(--text-primary);
+    background: var(--bg-secondary);
+}
+
+.cr-tab.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+    font-weight: 600;
+}
+
+/* ---- Cross-Review Panels ---- */
+
+.cr-panel {
+    display: block;
+}
+
+.cr-panel.hidden {
+    display: none;
+}
+
+/* ---- Synthesis Result (State 8) ---- */
+
+.synthesis-result {
+    margin-top: 1.5rem;
+    padding: 1.5rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-left: 4px solid var(--primary);
+    border-radius: var(--border-radius);
+}
+
+.synthesis-result.hidden {
+    display: none;
+}
+
+.synthesis-result h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+}
+
+#synthesis-content {
+    font-size: 0.95rem;
+    line-height: 1.7;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+#synthesis-content h2,
+#synthesis-content h3,
+#synthesis-content h4 {
+    margin: 1rem 0 0.5rem;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+#synthesis-content h2 { font-size: 1.1rem; }
+#synthesis-content h3 { font-size: 1rem; }
+#synthesis-content h4 { font-size: 0.95rem; }
+#synthesis-content p  { margin-bottom: 0.75rem; }
+#synthesis-content strong { font-weight: 600; }
+#synthesis-content em     { font-style: italic; }
+
+/* ---- Large Synthesis Button ---- */
+
+.btn-large {
+    font-size: 1rem;
+    padding: 0.85rem 2rem;
+}
+
+/* ---- AI Input Grids (reused from main style, scoped here for clarity) ---- */
+
+.ai-inputs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-top: 0.5rem;
+}
+
+@media (max-width: 800px) {
+    .ai-inputs {
+        grid-template-columns: 1fr;
+    }
+}
+
+.ai-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.ai-input-group label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.ai-input-group.chatgpt label { color: var(--chatgpt); }
+.ai-input-group.claude  label { color: var(--claude); }
+.ai-input-group.gemini  label { color: var(--gemini); }
+
+.ai-input-group textarea {
+    min-height: 180px;
+    resize: vertical;
+    font-size: 0.85rem;
+}
+
+/* ---- Copy Buttons Row ---- */
+
+.copy-buttons {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+
+/* ---- Usage Stats ---- */
+
+.usage-stats {
+    position: fixed;
+    bottom: 1rem;
+    right: 1rem;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 0.35rem 0.75rem;
+    z-index: 500;
+}
+
+.usage-stats:empty {
+    display: none;
+}

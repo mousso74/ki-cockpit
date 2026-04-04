@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asinito - Erweiterte Analyse</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/extended.css?v=1.0">
+    <link rel="icon" type="image/png" href="Asinito-Logo.png">
+</head>
+<body>
+    <header>
+        <div class="header-left">
+            <a href="index.html">
+                <img src="Asinito-Logo.png" alt="Asinito" class="logo">
+            </a>
+            <div class="state-indicator">
+                <span class="state-dot" data-state="0"></span>
+                <span class="state-dot" data-state="1"></span>
+                <span class="state-dot" data-state="2"></span>
+                <span class="state-dot" data-state="3"></span>
+                <span class="state-dot" data-state="4"></span>
+                <span class="state-dot" data-state="5"></span>
+                <span class="state-dot" data-state="6"></span>
+                <span class="state-dot" data-state="7"></span>
+                <span class="state-dot" data-state="8"></span>
+            </div>
+        </div>
+        <nav class="header-nav">
+            <a href="index.html" class="nav-link">Home</a>
+            <a href="extended.html" class="nav-link active">Erweitert</a>
+            <a href="archiv.html" class="nav-link">Archiv</a>
+        </nav>
+    </header>
+
+    <main>
+
+        <!-- ═══════════════════════════════════════
+             STATE 0: Problem-Eingabe
+             ═══════════════════════════════════════ -->
+        <section id="state-0" class="state-section active">
+            <div class="card">
+                <h2>Problem beschreiben</h2>
+                <p class="description">Beschreibe dein Problem so detailliert wie möglich. Die KIs werden zuerst klärende Fragen stellen, dann eigenständig Lösungen erarbeiten, und sich anschließend gegenseitig kritisch bewerten.</p>
+
+                <div class="category-project-row">
+                    <div class="form-group">
+                        <label for="categorySelect">Kategorie</label>
+                        <select id="categorySelect">
+                            <option value="privat">Privat</option>
+                            <option value="geschäftlich">Geschäftlich</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="projectSelect">Projekt</label>
+                        <select id="projectSelect">
+                            <option value="">Projekt wählen...</option>
+                            <option value="__new__">+ Neues Projekt erstellen</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group" id="newProjectGroup" style="display: none;">
+                    <label for="newProjectName">Neues Projekt</label>
+                    <input type="text" id="newProjectName" placeholder="Projektname eingeben...">
+                </div>
+
+                <div class="form-group">
+                    <label for="sessionTitle">Session-Titel (für Archiv)</label>
+                    <input type="text" id="sessionTitle" placeholder="z.B. Marketingstrategie Q3">
+                </div>
+                <textarea id="problem-input" placeholder="Beschreibe hier dein Problem..."></textarea>
+            </div>
+
+            <div class="card">
+                <h2>Ablauf: Erweiterte Analyse</h2>
+                <div class="flow-overview">
+                    <div class="flow-step done">① Fragen-Prompts generieren → an alle 3 KIs schicken</div>
+                    <div class="flow-step">② KI-Fragen zusammenführen → beantworten</div>
+                    <div class="flow-step">③ Lösungs-Prompts → 3 unabhängige KI-Lösungen</div>
+                    <div class="flow-step highlight">④ Cross-Review → jede KI bewertet die anderen beiden</div>
+                    <div class="flow-step">⑤ 3 überarbeitete Lösungen → finale Synthese</div>
+                </div>
+            </div>
+
+            <div class="actions">
+                <button class="btn btn-primary" onclick="extGeneratePrompts()">Prompts generieren →</button>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════
+             STATE 1: Phase-1 Fragen-Prompts
+             ═══════════════════════════════════════ -->
+        <section id="state-1" class="state-section">
+            <div class="card">
+                <h2>Phase 1 – Fragen-Prompts</h2>
+                <p class="description">Alle drei KIs erhalten denselben Prompt und stellen unabhängig klärende Fragen.</p>
+                <div class="prompt-display">
+                    <pre id="phase1-prompt"></pre>
+                </div>
+            </div>
+            <div class="copy-buttons">
+                <button class="btn btn-chatgpt" onclick="extCopyPrompt('phase1', 'ChatGPT')">
+                    <span class="btn-icon">📋</span> ChatGPT
+                </button>
+                <button class="btn btn-claude" onclick="extCopyPrompt('phase1', 'Claude')">
+                    <span class="btn-icon">📋</span> Claude
+                </button>
+                <button class="btn btn-gemini" onclick="extCopyPrompt('phase1', 'Gemini')">
+                    <span class="btn-icon">📋</span> Gemini
+                </button>
+            </div>
+            <div class="actions">
+                <button class="btn btn-secondary" onclick="extPrevState()">Zurück</button>
+                <button class="btn btn-primary" onclick="extNextState()">Weiter →</button>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════
+             STATE 2: KI-Fragen einfügen
+             ═══════════════════════════════════════ -->
+        <section id="state-2" class="state-section">
+            <div class="card">
+                <h2>KI-Fragen einfügen</h2>
+                <p class="description">Füge die Fragen-Outputs der drei KIs hier ein.</p>
+                <div class="ai-inputs">
+                    <div class="ai-input-group chatgpt">
+                        <label>ChatGPT Fragen</label>
+                        <textarea id="chatgpt-questions" placeholder="ChatGPT Fragen hier einfügen..."></textarea>
+                    </div>
+                    <div class="ai-input-group claude">
+                        <label>Claude Fragen</label>
+                        <textarea id="claude-questions" placeholder="Claude Fragen hier einfügen..."></textarea>
+                    </div>
+                    <div class="ai-input-group gemini">
+                        <label>Gemini Fragen</label>
+                        <textarea id="gemini-questions" placeholder="Gemini Fragen hier einfügen..."></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="actions">
+                <button class="btn btn-secondary" onclick="extPrevState()">Zurück</button>
+                <button class="btn btn-primary" onclick="extAnalyzeQuestions()">Fragen analysieren →</button>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════
+             STATE 3: Fragen beantworten
+             ═══════════════════════════════════════ -->
+        <section id="state-3" class="state-section">
+            <div class="card">
+                <h2>Fragen beantworten</h2>
+                <p class="description">Beantworte die zusammengefassten Fragen der KIs.</p>
+                <div id="questions-container"></div>
+            </div>
+            <div class="actions">
+                <button class="btn btn-secondary" onclick="extPrevState()">Zurück</button>
+                <button class="btn btn-primary" onclick="extGenerateSolvePrompts()">Lösungs-Prompts generieren →</button>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════
+             STATE 4: Phase-2 Lösungs-Prompts (Runde 1)
+             ═══════════════════════════════════════ -->
+        <section id="state-4" class="state-section">
+            <div class="card">
+                <h2>Phase 2 – Lösungs-Prompts (Runde 1)</h2>
+                <p class="description">Alle drei KIs erhalten denselben Lösungs-Prompt mit deinen Antworten. Sie arbeiten noch vollständig unabhängig voneinander.</p>
+                <div class="prompt-display">
+                    <pre id="phase2-prompt"></pre>
+                </div>
+            </div>
+            <div class="copy-buttons">
+                <button class="btn btn-chatgpt" onclick="extCopyPrompt('phase2', 'ChatGPT')">
+                    <span class="btn-icon">📋</span> ChatGPT
+                </button>
+                <button class="btn btn-claude" onclick="extCopyPrompt('phase2', 'Claude')">
+                    <span class="btn-icon">📋</span> Claude
+                </button>
+                <button class="btn btn-gemini" onclick="extCopyPrompt('phase2', 'Gemini')">
+                    <span class="btn-icon">📋</span> Gemini
+                </button>
+            </div>
+            <div class="actions">
+                <button class="btn btn-secondary" onclick="extPrevState()">Zurück</button>
+                <button class="btn btn-primary" onclick="extNextState()">Weiter →</button>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════
+             STATE 5: Lösungen Runde 1 einfügen
+             ═══════════════════════════════════════ -->
+        <section id="state-5" class="state-section">
+            <div class="card">
+                <h2>Lösungen Runde 1 einfügen</h2>
+                <p class="description">Füge die drei unabhängigen KI-Lösungen ein. Im nächsten Schritt bewertet jede KI die Antworten der anderen beiden.</p>
+                <div class="ai-inputs">
+                    <div class="ai-input-group chatgpt">
+                        <label>ChatGPT – Lösung Runde 1</label>
+                        <textarea id="chatgpt-solution-r1" placeholder="ChatGPT Lösung hier einfügen..."></textarea>
+                    </div>
+                    <div class="ai-input-group claude">
+                        <label>Claude – Lösung Runde 1</label>
+                        <textarea id="claude-solution-r1" placeholder="Claude Lösung hier einfügen..."></textarea>
+                    </div>
+                    <div class="ai-input-group gemini">
+                        <label>Gemini – Lösung Runde 1</label>
+                        <textarea id="gemini-solution-r1" placeholder="Gemini Lösung hier einfügen..."></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="actions">
+                <button class="btn btn-secondary" onclick="extPrevState()">Zurück</button>
+                <button class="btn btn-primary" onclick="extGenerateCrossReviewPrompts()">Cross-Review Prompts generieren →</button>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════
+             STATE 6: Cross-Review Prompts
+             ═══════════════════════════════════════ -->
+        <section id="state-6" class="state-section">
+            <div class="card">
+                <h2>Phase 3 – Cross-Review Prompts</h2>
+                <p class="description">
+                    Jede KI erhält <strong>ihre eigene Antwort</strong> + die <strong>Antworten der anderen beiden KIs</strong> und soll:
+                    <br>→ das Gute übernehmen&nbsp;&nbsp;→ das Schlechte/Falsche benennen&nbsp;&nbsp;→ eine verbesserte Gesamtantwort erstellen
+                </p>
+
+                <!-- Tab Navigation -->
+                <div class="cross-review-tabs">
+                    <button class="cr-tab active" onclick="extShowCRTab('chatgpt', this)">ChatGPT</button>
+                    <button class="cr-tab" onclick="extShowCRTab('claude', this)">Claude</button>
+                    <button class="cr-tab" onclick="extShowCRTab('gemini', this)">Gemini</button>
+                </div>
+
+                <!-- ChatGPT Cross-Review Prompt -->
+                <div class="cr-panel" id="cr-chatgpt">
+                    <div class="prompt-display">
+                        <pre id="cr-prompt-chatgpt"></pre>
+                    </div>
+                    <button class="btn btn-chatgpt" style="margin-top:0.75rem;" onclick="extCopyCRPrompt('chatgpt')">
+                        <span class="btn-icon">📋</span> Für ChatGPT kopieren
+                    </button>
+                </div>
+
+                <!-- Claude Cross-Review Prompt -->
+                <div class="cr-panel hidden" id="cr-claude">
+                    <div class="prompt-display">
+                        <pre id="cr-prompt-claude"></pre>
+                    </div>
+                    <button class="btn btn-claude" style="margin-top:0.75rem;" onclick="extCopyCRPrompt('claude')">
+                        <span class="btn-icon">📋</span> Für Claude kopieren
+                    </button>
+                </div>
+
+                <!-- Gemini Cross-Review Prompt -->
+                <div class="cr-panel hidden" id="cr-gemini">
+                    <div class="prompt-display">
+                        <pre id="cr-prompt-gemini"></pre>
+                    </div>
+                    <button class="btn btn-gemini" style="margin-top:0.75rem;" onclick="extCopyCRPrompt('gemini')">
+                        <span class="btn-icon">📋</span> Für Gemini kopieren
+                    </button>
+                </div>
+            </div>
+            <div class="actions">
+                <button class="btn btn-secondary" onclick="extPrevState()">Zurück</button>
+                <button class="btn btn-primary" onclick="extNextState()">Weiter →</button>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════
+             STATE 7: Überarbeitete Lösungen einfügen
+             ═══════════════════════════════════════ -->
+        <section id="state-7" class="state-section">
+            <div class="card">
+                <h2>Überarbeitete Lösungen einfügen</h2>
+                <p class="description">Füge die drei überarbeiteten KI-Antworten ein. Jede Antwort enthält: was übernommen wurde, was abgelehnt wurde, und die verbesserte Gesamtlösung.</p>
+                <div class="ai-inputs">
+                    <div class="ai-input-group chatgpt">
+                        <label>ChatGPT – Überarbeitete Lösung</label>
+                        <textarea id="chatgpt-solution-r2" placeholder="ChatGPT überarbeitete Antwort hier einfügen..."></textarea>
+                    </div>
+                    <div class="ai-input-group claude">
+                        <label>Claude – Überarbeitete Lösung</label>
+                        <textarea id="claude-solution-r2" placeholder="Claude überarbeitete Antwort hier einfügen..."></textarea>
+                    </div>
+                    <div class="ai-input-group gemini">
+                        <label>Gemini – Überarbeitete Lösung</label>
+                        <textarea id="gemini-solution-r2" placeholder="Gemini überarbeitete Antwort hier einfügen..."></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="actions">
+                <button class="btn btn-secondary" onclick="extPrevState()">Zurück</button>
+                <button class="btn btn-primary" onclick="extNextState()">Weiter →</button>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════
+             STATE 8: Finale Synthese
+             ═══════════════════════════════════════ -->
+        <section id="state-8" class="state-section">
+            <div class="card">
+                <h2>Finale Synthese</h2>
+                <p class="description">Gemini analysiert alle drei überarbeiteten Lösungen (inkl. der explizit dokumentierten Stärken und Schwächen) und destilliert die <strong>optimale Gesamtlösung</strong>.</p>
+                <button class="btn btn-primary btn-large" onclick="extStartSynthesis()" id="synthesis-btn">
+                    🔮 Bestlösung synthetisieren
+                </button>
+                <div id="synthesis-result" class="synthesis-result hidden">
+                    <h3>Synthesierte Bestlösung</h3>
+                    <div id="synthesis-content"></div>
+                </div>
+            </div>
+            <div class="actions">
+                <button class="btn btn-secondary" onclick="extPrevState()">Zurück</button>
+                <button class="btn btn-primary" onclick="extResetSession()">Neue Session</button>
+            </div>
+        </section>
+
+    </main>
+
+    <footer>
+        <button class="btn btn-footer" onclick="extSaveSession()">Session speichern</button>
+    </footer>
+
+    <div id="usageStats" class="usage-stats"></div>
+    <div id="toast" class="toast hidden"></div>
+
+    <script src="js/prompts.js?v=3.4.5"></script>
+    <script src="js/parser.js?v=3.4.5"></script>
+    <script src="js/storage.js?v=3.7"></script>
+    <script src="js/extended.js?v=1.0"></script>
+</body>
+</html>
