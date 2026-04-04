@@ -905,13 +905,13 @@ function generateSessionMarkdown(session) {
 | | | - Neues Feld `mapped_ids` zeigt Zusammenfassungen |
 | | | - Temperature 0.0 für maximale Präzision |
 | | | - Test: 15 Input → 10 Output (5 echte Duplikate erkannt) ✅ |
-| **V3.6** | **04.04.2026** | **Bugfix: Gemini-Modell + Drive-Speicher-Diagnose** |
+| **V3.6** | **04.04.2026** | **Bugfix: Gemini-Modell + Drive-Speicher-Diagnose + Dropdown-Duplikate** |
 | | | - **KRITISCH (Backend):** `gemini-3-pro-preview` existiert nicht → auf `gemini-2.0-flash` umstellen |
 | | | - **Frontend:** `saveSession()` prüft jetzt wirklich die Backend-Antwort |
 | | | - Toast unterscheidet jetzt: ✅ Google Drive, ⚠️ nur lokal, ❌ Fehler |
 | | | - localStorage immer als Sicherheitsnetz (vor dem Backend-Call) |
 | | | - CSS: `.toast.warning` (gelbe Farbe) hinzugefügt |
-| | | - Diagnose via Cowork/Claude (kein Browser-Zugriff nötig) |
+| | | - **Fix: Projekte erschienen doppelt im Dropdown** (doppelter Event-Handler entfernt) |
 
 ---
 
@@ -1005,6 +1005,22 @@ function generateSessionMarkdown(session) {
 - Bei Erfolg: ✅ "Session in Google Drive gespeichert!"
 - Bei Fallback: ⚠️ "Nur lokal gespeichert (Google Drive nicht erreichbar: ...)" mit Fehlergrund
 - localStorage wird immer zuerst als Sicherheitsnetz geschrieben
+
+---
+
+### Problem: Projekte erscheinen doppelt im Dropdown (V3.6)
+
+**Symptom:** Alle Projekte tauchen zweimal in der Auswahlliste auf, sobald man die Kategorie wechselt.
+
+**Ursache:** Die Funktion `updateProjectDropdown()` wurde doppelt ausgelöst:
+1. Inline `onchange="updateProjectDropdown()"` im HTML-Element `<select id="categorySelect">`
+2. `addEventListener('change', ...)` in `app.js` (DOMContentLoaded)
+
+Da die Funktion `async` ist und einen Fetch macht, liefen beide Anfragen parallel und hängten beide ihre Ergebnisse ins Dropdown.
+
+**Lösung:** `onchange="updateProjectDropdown()"` aus dem `<select>`-Tag in `index.html` entfernt. Der Event-Listener in `app.js` reicht aus.
+
+**Regel:** Nie denselben Event sowohl inline im HTML als auch per `addEventListener` in JS registrieren.
 
 ---
 
