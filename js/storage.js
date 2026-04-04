@@ -18,6 +18,9 @@ async function saveSession(sessionData) {
     sessionData.titleSlug = titleSlug;
     sessionData.name = title || 'Unbenannte Session';
 
+    // Always save to localStorage first as safety backup
+    saveToLocalStorage(sessionData);
+
     try {
         const response = await fetch(BACKEND_URL, {
             method: 'POST',
@@ -31,17 +34,30 @@ async function saveSession(sessionData) {
             })
         });
 
-        // With no-cors, we can't read the response
-        // Save to localStorage as backup
-        saveToLocalStorage(sessionData);
+        if (!response.ok) {
+            console.error('[storage.js] HTTP error:', response.status);
+            return { success: false, fallback: true, error: `HTTP ${response.status}` };
+        }
 
-        console.log('[storage.js] Session saved successfully');
-        return { success: true };
+        let result;
+        try {
+            result = await response.json();
+        } catch (jsonError) {
+            console.error('[storage.js] Could not parse response as JSON:', jsonError);
+            return { success: false, fallback: true, error: 'Ungültige Antwort vom Backend' };
+        }
+
+        if (result.status === 'success') {
+            console.log('[storage.js] Session saved to Google Drive:', result.data?.name);
+            return { success: true, driveId: result.data?.id, fileName: result.data?.name };
+        } else {
+            console.error('[storage.js] Backend error:', result.message);
+            return { success: false, fallback: true, error: result.message };
+        }
+
     } catch (error) {
-        console.error('[storage.js] Error saving session:', error);
-        // Fallback to localStorage
-        saveToLocalStorage(sessionData);
-        return { success: true, fallback: true };
+        console.error('[storage.js] Network error saving session:', error);
+        return { success: false, fallback: true, error: error.message };
     }
 }
 

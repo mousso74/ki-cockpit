@@ -771,6 +771,10 @@ footer {
     border-left: 4px solid var(--error);
 }
 
+.toast.warning {
+    border-left: 4px solid #f59e0b;
+}
+
 @keyframes toastIn {
     from {
         opacity: 0;

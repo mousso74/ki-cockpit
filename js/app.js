@@ -1093,8 +1093,16 @@ async function saveCurrentSession() {
     console.log('[app.js] Saving to:', category, '/', project, '/', titleSlug);
 
     try {
-        await saveSession(session);
-        showToast('Session gespeichert!', 'success');
+        const result = await saveSession(session);
+        if (result.success && !result.fallback) {
+            showToast('✅ Session in Google Drive gespeichert!', 'success');
+        } else if (result.fallback) {
+            const reason = result.error ? `: ${result.error}` : '';
+            showToast(`⚠️ Nur lokal gespeichert (Google Drive nicht erreichbar${reason})`, 'warning');
+            console.warn('[app.js] Google Drive save failed, local fallback used. Error:', result.error);
+        } else {
+            showToast('Speichern fehlgeschlagen', 'error');
+        }
     } catch (error) {
         console.error('[app.js] Save error:', error);
         showToast('Speichern fehlgeschlagen', 'error');
