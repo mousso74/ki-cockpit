@@ -344,9 +344,9 @@ async function extAnalyzeQuestions() {
 
     try {
         // Parse questions from each KI
-        const chatgptQs = parseQuestions(chatgpt || '');
-        const claudeQs  = parseQuestions(claude  || '');
-        const geminiQs  = parseQuestions(gemini  || '');
+        const chatgptQs = extractQuestions(chatgpt || '', 'chatgpt');
+        const claudeQs  = extractQuestions(claude  || '', 'claude');
+        const geminiQs  = extractQuestions(gemini  || '', 'gemini');
 
         console.log('[extended.js] Questions parsed:', chatgptQs.length, claudeQs.length, geminiQs.length);
 
