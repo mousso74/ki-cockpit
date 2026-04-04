@@ -905,6 +905,13 @@ function generateSessionMarkdown(session) {
 | | | - Neues Feld `mapped_ids` zeigt Zusammenfassungen |
 | | | - Temperature 0.0 für maximale Präzision |
 | | | - Test: 15 Input → 10 Output (5 echte Duplikate erkannt) ✅ |
+| **V3.6** | **04.04.2026** | **Bugfix: Gemini-Modell + Drive-Speicher-Diagnose** |
+| | | - **KRITISCH (Backend):** `gemini-3-pro-preview` existiert nicht → auf `gemini-2.0-flash` umstellen |
+| | | - **Frontend:** `saveSession()` prüft jetzt wirklich die Backend-Antwort |
+| | | - Toast unterscheidet jetzt: ✅ Google Drive, ⚠️ nur lokal, ❌ Fehler |
+| | | - localStorage immer als Sicherheitsnetz (vor dem Backend-Call) |
+| | | - CSS: `.toast.warning` (gelbe Farbe) hinzugefügt |
+| | | - Diagnose via Cowork/Claude (kein Browser-Zugriff nötig) |
 
 ---
 
@@ -969,6 +976,38 @@ function generateSessionMarkdown(session) {
 
 **Lösung:** `extractSynthesisText()` Funktion verwenden
 
+### Problem: Gemini API schlägt komplett fehl – Deduplizierung und Synthese funktionieren nicht (V3.6)
+
+**Symptom:** Deduplizierung fällt auf lokale Logik zurück ("Lokale Analyse verwendet"), Synthese produziert keine KI-Antwort. Keine sichtbare Fehlermeldung.
+
+**Ursache:** Das Backend-Modell `gemini-3-pro-preview` existiert nicht. Die Gemini API gibt einen 404-Fehler zurück, der im Backend als `errorResponse` weitergeleitet wird. Das Frontend fängt den Fehler still ab und nutzt Fallbacks.
+
+**Lösung (Backend):**
+1. Google Apps Script öffnen: https://script.google.com/
+2. In `SETTINGS` (Zeile ~8) ändern: `MODEL: "gemini-3-pro-preview"` → `MODEL: "gemini-2.0-flash"`
+3. **Neu deployen:** Bereitstellen → Bereitstellungen verwalten → Bearbeiten → Neue Version → Bereitstellen
+4. URL bleibt gleich, kein Frontend-Update nötig
+
+**Gültige Modelle (Stand April 2026):**
+- `gemini-2.0-flash` – empfohlen (stabil, kostenlos, schnell)
+- `gemini-2.5-pro-preview-03-25` – leistungsfähiger, aber experimentell
+
+---
+
+### Problem: Google Drive Speichern schlägt still fehl (V3.6)
+
+**Symptom:** Toast zeigt "Session gespeichert!" aber nichts erscheint in Google Drive. Kein sichtbarer Fehler.
+
+**Ursache:** Die alte `saveSession()`-Funktion hat die Backend-Antwort nie geprüft und immer `{ success: true }` zurückgegeben.
+
+**Lösung (Frontend, bereits implementiert in V3.6):**
+- `saveSession()` liest jetzt `response.json()` und prüft `result.status`
+- Bei Erfolg: ✅ "Session in Google Drive gespeichert!"
+- Bei Fallback: ⚠️ "Nur lokal gespeichert (Google Drive nicht erreichbar: ...)" mit Fehlergrund
+- localStorage wird immer zuerst als Sicherheitsnetz geschrieben
+
+---
+
 ### Problem: Umlaute falsch kodiert
 
 **Symptom:** `Ã¤` statt `ä`
@@ -1030,7 +1069,9 @@ Falls eine andere KI dieses Projekt weiterentwickeln soll:
    - Daten sind oft verschachtelt: `data.data.field`
    - Synthese kann JSON-String sein: immer `extractSynthesisText()` nutzen
    - Prompts müssen "gehärtet" sein: keine Extra-Ausgabe außerhalb der definierten Blöcke
-   - Gemini 3 ist "chatty": Regex-Extraktion für JSON verwenden
+   - Gemini ist "chatty": Regex-Extraktion für JSON verwenden (`rawText.match(/\[\s*\{[\s\S]*\}\s*\]/)`)
+   - **Gemini-Modellname immer prüfen:** `SETTINGS.MODEL` in GAS muss ein gültiges Modell sein (z.B. `gemini-2.0-flash`). Ungültige Modelle scheitern still ohne Frontend-Fehlermeldung.
+   - **`saveSession()` gibt jetzt echtes Feedback:** `result.success && !result.fallback` = Drive OK, `result.fallback` = nur lokal gespeichert
 
 5. **Deployment-Workflow:**
    - Frontend: `git push` → GitHub Pages aktualisiert automatisch
