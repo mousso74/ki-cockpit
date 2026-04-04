@@ -454,13 +454,14 @@ async function analyzeQuestions() {
             window.deduplicatedQuestions = questions;
             showToast(`${questions.length} deduplizierte Fragen gefunden! (von ${totalExtracted} original)`, 'success');
         } else {
-            // Fallback to local deduplication
-            console.log('[app.js] API deduplication failed, using fallback');
+            // Fallback to local deduplication – show actual backend error
+            const backendError = result.message || JSON.stringify(result);
+            console.warn('[app.js] API deduplication failed:', backendError);
             const localQuestions = localDeduplicateQuestions(chatgptOutput, claudeOutput, geminiOutput);
             displayDeduplicatedQuestions(localQuestions);
             session.deduplicatedQuestions = localQuestions;
             window.deduplicatedQuestions = localQuestions;
-            showToast(`${localQuestions.length} Fragen gefunden (lokal)`, 'success');
+            showToast(`⚠️ Gemini-Fehler: ${backendError}`, 'warning');
         }
     } catch (error) {
         console.error('[app.js] Deduplication error:', error);
@@ -469,7 +470,7 @@ async function analyzeQuestions() {
         displayDeduplicatedQuestions(localQuestions);
         session.deduplicatedQuestions = localQuestions;
         window.deduplicatedQuestions = localQuestions;
-        showToast('Lokale Analyse verwendet', 'success');
+        showToast(`⚠️ Verbindungsfehler: ${error.message}`, 'warning');
     }
 }
 
