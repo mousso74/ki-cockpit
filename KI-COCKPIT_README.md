@@ -1,10 +1,10 @@
-# Asinito KI-Cockpit V3.5.1 – Vollständige Technische Dokumentation
+# Asinito KI-Cockpit V4.6 – Vollständige Technische Dokumentation
 
 **Projektname:** Asinito KI-Cockpit (ehemals KI-Cockpit)
-**Version:** 3.5.1
-**Entwicklungszeitraum:** 1.–3. Februar 2026
+**Version:** 4.6
+**Entwicklungszeitraum:** 1. Februar – 4. April 2026
 **Lead-Architekt:** Claude (Anthropic)
-**Assistenten:** Gemini (Google), ChatGPT (OpenAI)
+**Assistenten:** Gemini (Google), ChatGPT (OpenAI), DeepSeek
 **Eigentümer:** Armin (GitHub: mousso74)
 
 ---
@@ -29,18 +29,23 @@
 
 ## 1. Projektübersicht
 
-Das KI-Cockpit ist eine Web-Applikation, die drei KI-Modelle (ChatGPT, Claude, Gemini) parallel befragt, um komplexe Probleme zu lösen. Der Workflow umfasst:
+Das KI-Cockpit ist eine Web-Applikation, die bis zu vier KI-Modelle (ChatGPT, Claude, Gemini, DeepSeek) parallel befragt, um komplexe Probleme zu lösen. Es gibt zwei Templates:
 
-1. **Problemdefinition** durch den Benutzer
-2. **Kategorie- und Projektauswahl** (geschäftlich/privat + Projektordner)
-3. **Automatische Prompt-Generierung** für alle drei KIs
-4. **Rückfragen-Sammlung** von allen drei KIs
-5. **Intelligente Deduplizierung** der Fragen via Gemini API
-6. **Beantwortung** der deduplizierten Fragen
-7. **Lösungsgenerierung** durch alle drei KIs
-8. **Synthese** der besten Lösung via Gemini API
-9. **Archivierung** in Google Drive (hierarchische Ordnerstruktur)
-10. **Export** als Markdown
+**Fragen-Analyse (Standard, 6 States):**
+1. Problemdefinition + Kategorie/Projektauswahl
+2. Prompt-Generierung → KIs stellen Rückfragen (2–4 KIs, beliebig wählbar)
+3. Intelligente Deduplizierung via Gemini API
+4. Beantwortung der Fragen
+5. Lösungsgenerierung durch alle beteiligten KIs
+6. Synthese via Gemini + Archivierung in Google Drive
+
+**Cross-Over-Analyse (Erweitert, 9 States):**
+Wie Fragen-Analyse, aber mit einer zusätzlichen Runde:
+- Runde 1: Jede KI löst das Problem eigenständig
+- Cross-Review: Jede KI bewertet die Antworten **aller anderen** — übernimmt das Gute, benennt das Schlechte
+- Runde 2: Überarbeitete Lösungen werden final von Gemini synthetisiert
+
+Beide Templates speichern ins selbe Google Drive Archiv ohne Unterscheidung.
 
 ---
 
@@ -58,8 +63,10 @@ Das KI-Cockpit ist eine Web-Applikation, die drei KI-Modelle (ChatGPT, Claude, G
 │  │   HTML      │  │   CSS       │  │   JavaScript │              │
 │  │ index.html  │  │ style.css   │  │ app.js       │              │
 │  │ archiv.html │  │ archiv.css  │  │ prompts.js   │              │
-│  └─────────────┘  └─────────────┘  │ storage.js   │              │
-│                                     │ archiv.js    │              │
+│  │ extended.html│ │ extended.css│  │ storage.js   │              │
+│  │ session.html│  │ session.css │  │ archiv.js    │              │
+│  └─────────────┘  └─────────────┘  │ extended.js  │              │
+│                                     │ session.js   │              │
 │                                     └─────────────┘              │
 └─────────────────────────────────────────────────────────────────┘
                               │
@@ -144,12 +151,22 @@ Das Projekt wurde mit einem innovativen Multi-KI-Entwicklungsansatz realisiert:
 |------------|-------------|--------------|
 | Frontend-Hosting | GitHub Pages | Statisches Hosting, kostenlos |
 | Frontend-Sprache | Vanilla JavaScript | Kein Framework, direkte DOM-Manipulation |
-| Styling | CSS3 | Light Theme (Asinito CI), responsive |
+| Styling | CSS3 | Light Theme (Asinito CI), responsive, 4-KI auto-grid |
 | Backend | Google Apps Script | Serverless, kostenlos |
 | Datenbank | Google Drive | JSON-Dateien in hierarchischer Ordnerstruktur |
-| AI-Engine | Gemini API | gemini-3-pro-preview |
+| AI-Engine (Synthese) | Gemini API | gemini-2.5-flash (Deduplizierung + Synthese) |
+| KI-Modelle (manuell) | ChatGPT / Claude / Gemini / DeepSeek | Prompts werden kopiert und manuell eingefügt |
 | Versionskontrolle | Git/GitHub | Repository: mousso74/ki-cockpit |
-| Entwicklungstool | Claude Code | CLI-basierte Entwicklung |
+| Entwicklungstool | Claude (Cowork) | Agentenbasierte Entwicklung |
+
+### KI-Farben (CSS-Variablen)
+
+| KI | CSS-Variable | Hex | Verwendung |
+|----|-------------|-----|------------|
+| ChatGPT | `--chatgpt` | `#10a37f` | Grün |
+| Claude | `--claude` | `#d97706` | Amber |
+| Gemini | `--gemini` | `#4285f4` | Blau |
+| DeepSeek | `--deepseek` | `#7c3aed` | Lila |
 
 ---
 
@@ -157,16 +174,23 @@ Das Projekt wurde mit einem innovativen Multi-KI-Entwicklungsansatz realisiert:
 
 ```
 ki-cockpit/
-├── index.html              # Hauptseite mit State-Machine
-├── archiv.html             # Archiv-Übersicht (V3.0)
+├── index.html              # Hauptseite: Template-Auswahl + Fragen-Analyse (6 States)
+├── extended.html           # Erweiterte Analyse: Cross-Over-Template (9 States)
+├── archiv.html             # Archiv: Zwei-Panel-Layout mit Suche + Vorschau
+├── session.html            # Einzelansicht einer Session (mit editierbarem Titel)
 ├── css/
-│   ├── style.css           # Dark Theme Styling (Hauptseite)
-│   └── archiv.css          # Archiv-Styling (V3.0)
+│   ├── style.css           # Globales Styling, Asinito CI, alle 4 KI-Farben
+│   ├── archiv.css          # Archiv-spezifisches Layout (V4.0)
+│   ├── extended.css        # Extended-Template-Styles (Flow, Cross-Review-Tabs)
+│   └── session.css         # Session-Einzelansicht-Styles
 ├── js/
-│   ├── app.js              # Hauptlogik, State-Management
-│   ├── prompts.js          # Prompt-Templates (Questions, Solve)
-│   ├── storage.js          # API-Kommunikation mit Backend
-│   └── archiv.js           # Archiv-Logik (V3.0)
+│   ├── app.js              # Standard-Template: Hauptlogik, State-Management
+│   ├── extended.js         # Extended-Template: 9-State Cross-Review Logik
+│   ├── prompts.js          # Prompt-Templates (Questions, Solve, Cross-Review)
+│   ├── storage.js          # API-Kommunikation mit GAS-Backend
+│   ├── archiv.js           # Archiv-Logik: Filtern, Vorschau, Edit, Delete
+│   └── session.js          # Session-Einzelansicht: Render, Titel-Edit, Export
+├── GAS_backend_v3.8_complete.js  # Google Apps Script Backend (deploy via GAS)
 └── KI-COCKPIT_README.md    # Projekt-Dokumentation
 ```
 
@@ -206,27 +230,54 @@ Die Hauptseite (index.html) enthält:
 
 ## 7. Workflow-Beschreibung
 
-### State-Machine (6 Zustände)
+### Template-Auswahl (index.html State 0)
+
+Auf der Hauptseite wählt der Nutzer zwischen zwei Templates. Bei "Cross-Over-Analyse" werden die Formulardaten via `sessionStorage` übergeben und der Browser wechselt zu `extended.html`.
+
+### Standard-Template: Fragen-Analyse (6 States)
 
 ```
-State 0: PROBLEM_INPUT (+ Kategorie/Projekt-Auswahl)
+State 0: PROBLEM_INPUT (Kategorie/Projekt-Auswahl + Template-Wahl)
     │
     ▼ [Prompts generieren]
-State 1: PHASE1_PROMPTS
+State 1: PHASE1_PROMPTS (Kopier-Buttons für 2–4 KIs)
     │
     ▼ [KI-Outputs einfügen → Fragen analysieren]
-State 2: QUESTIONS_REVIEW (Deduplizierung via Gemini)
-    │
-    ▼ [Fragen beantworten]
+State 2: QUESTIONS_INPUT (leere Felder = KI nicht gefragt)
+    │  Deduplizierung via Gemini API
+    ▼
 State 3: ANSWERS_INPUT
     │
     ▼ [Solve-Prompts generieren]
-State 4: PHASE2_PROMPTS
+State 4: PHASE2_PROMPTS (Kopier-Buttons für 2–4 KIs)
     │
     ▼ [KI-Outputs einfügen → Synthese starten]
-State 5: SYNTHESIS (Synthese via Gemini)
+State 5: SYNTHESIS (Gemini synthetisiert alle beteiligten KIs)
     │
-    ▼ [Session speichern / Exportieren]
+    ▼ [Session speichern → Google Drive]
+```
+
+### Extended-Template: Cross-Over-Analyse (9 States)
+
+```
+State 0: PROBLEM_INPUT (identisch mit Standard)
+    │
+State 1: PHASE1_PROMPTS → an 2–4 KIs schicken
+State 2: KI-FRAGEN einfügen (leer = nicht gefragt)
+State 3: FRAGEN BEANTWORTEN (dedupliziert)
+State 4: PHASE2_PROMPTS (Runde 1) → unabhängige Lösungen
+State 5: LÖSUNGEN R1 einfügen
+    │
+    ▼ [Cross-Review generieren]
+State 6: CROSS-REVIEW PROMPTS (Tab pro KI)
+         Jede KI sieht: eigene Antwort + Antworten ALLER anderen
+         Output-Struktur: [ÜBERNAHMEN] [KRITIK] [VERBESSERTE_GESAMTANTWORT]
+State 7: LÖSUNGEN R2 einfügen (überarbeitet)
+    │
+    ▼ [Finale Synthese]
+State 8: FINALE SYNTHESE (Gemini über alle überarbeiteten Lösungen)
+    │
+    ▼ [Session speichern → selbes Archiv wie Standard-Template]
 ```
 
 ### Deduplizierungsprozess
@@ -928,6 +979,40 @@ function generateSessionMarkdown(session) {
 | | | - localStorage immer als Sicherheitsnetz (vor dem Backend-Call) |
 | | | - CSS: `.toast.warning` (gelbe Farbe) hinzugefügt |
 | | | - **Fix: Projekte erschienen doppelt im Dropdown** (doppelter Event-Handler entfernt) |
+| **V4.0** | **04.04.2026** | **Archiv-Redesign: Zwei-Panel-Layout** |
+| | | - Komplettes Rewrite von archiv.html, archiv.css, archiv.js |
+| | | - Zwei-Panel-Layout: links Filter+Session-Liste (40%), rechts Vorschau (60%) |
+| | | - 3 Buttons pro Session: Löschen, Laden (öffnet session.html), Bearbeiten (inline) |
+| | | - Suchfeld erscheint wenn Kategorie + Projekt gewählt |
+| | | - Projektlöschen-Button (🗑) neben Projekt-Dropdown |
+| | | - Backend: `moveSession`, `deleteProject` Actions hinzugefügt |
+| **V4.1** | **04.04.2026** | **session.html: Einzelansicht mit editierbarem Titel** |
+| | | - Neue Seite `session.html` + `js/session.js` + `css/session.css` |
+| | | - Vollständige Session-Ansicht: Problem, Q&A, 3 KI-Lösungen, Synthese |
+| | | - ✏️ Button → inline Titel-Edit → Speichern via `renameSession` GAS |
+| | | - Kopier-Buttons: Als Markdown + Als TXT |
+| **V4.2** | **04.04.2026** | **Titel-Sync Fix: handleListSessions liest content.name** |
+| | | - Nach Umbenennen zeigte Archiv noch den alten Dateinamen-Slug |
+| | | - Fix: `handleListSessions` liest `content.name` aus JSON-Inhalt der Datei |
+| | | - Fallback auf Slug wenn kein name-Feld vorhanden |
+| **V4.3** | **04.04.2026** | **Extended-Template: Cross-Over-Analyse (9 States)** |
+| | | - Neue Seiten: `extended.html` + `js/extended.js` + `css/extended.css` |
+| | | - 9-State Workflow: Runde 1 → Cross-Review → Runde 2 → Synthese |
+| | | - Cross-Review: Jede KI bewertet alle anderen (Prompt: [ÜBERNAHMEN] [KRITIK] [VERBESSERTE_GESAMTANTWORT]) |
+| | | - Tab-Navigation für Cross-Review Prompts (ein Tab pro KI) |
+| **V4.4** | **04.04.2026** | **Navigation: "Erweitert" in allen Seiten** |
+| | | - Nav-Link "Erweitert" in index.html, archiv.html, session.html ergänzt |
+| **V4.5** | **04.04.2026** | **Template-Auswahl auf Hauptseite** |
+| | | - Zweite Template-Karte "Cross-Over-Analyse" auf index.html |
+| | | - Bei Wahl: Formulardaten via `sessionStorage` übergeben → Redirect zu extended.html |
+| | | - extended.js liest Handoff und befüllt Formular automatisch |
+| **V4.6** | **04.04.2026** | **DeepSeek als 4. KI + dynamischer Cross-Review** |
+| | | - DeepSeek (lila, #7c3aed) in beiden Templates: Fragen, Lösungen R1, Cross-Review, Lösungen R2 |
+| | | - Alle KI-Felder optional: leeres Feld = KI nicht gefragt, wird übersprungen |
+| | | - Cross-Review dynamisch: jede teilnehmende KI sieht alle anderen (1–3 andere KIs) |
+| | | - `generateCrossReviewPrompt()` nimmt jetzt Array `others[]` statt hardcodierte 2 |
+| | | - CSS-Grid von `repeat(3, 1fr)` auf `repeat(auto-fit, minmax(200px, 1fr))` |
+| | | - Tabs in State 6 werden für nicht-teilnehmende KIs ausgeblendet |
 
 ---
 
