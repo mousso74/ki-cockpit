@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Asinito - Archiv</title>
     <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/archiv.css">
+    <link rel="stylesheet" href="css/archiv.css?v=4.1">
     <link rel="icon" type="image/png" href="Asinito-Logo.png">
 </head>
 <body class="archiv-page">
@@ -38,9 +38,16 @@
                 </div>
                 <div class="filter-group">
                     <label for="filterProject">Projekt</label>
-                    <select id="filterProject">
-                        <option value="">Alle Projekte</option>
-                    </select>
+                    <div class="filter-project-row">
+                        <select id="filterProject">
+                            <option value="">Alle Projekte</option>
+                        </select>
+                        <button
+                            id="btnDeleteProject"
+                            class="btn-delete-project hidden"
+                            onclick="deleteProject()"
+                            title="Leeres Projekt löschen">🗑</button>
+                    </div>
                 </div>
             </div>
 

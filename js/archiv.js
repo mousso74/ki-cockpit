@@ -19,7 +19,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Filter listeners
     document.getElementById('filterCategory').addEventListener('change', onCategoryChange);
-    document.getElementById('filterProject').addEventListener('change', applyFilters);
+    document.getElementById('filterProject').addEventListener('change', () => {
+        updateDeleteProjectButton();
+        applyFilters();
+    });
 
     // Load data
     await loadData();
@@ -66,6 +69,7 @@ async function loadProjects() {
 
 function onCategoryChange() {
     updateProjectDropdown();
+    updateDeleteProjectButton();
     applyFilters();
 }
 
@@ -87,6 +91,66 @@ function updateProjectDropdown() {
     });
 }
 
+
+/** Show/hide the 🗑 project-delete button depending on selection */
+function updateDeleteProjectButton() {
+    const project  = document.getElementById('filterProject').value;
+    const category = document.getElementById('filterCategory').value;
+    const btn      = document.getElementById('btnDeleteProject');
+    if (btn) {
+        btn.classList.toggle('hidden', !project || !category);
+    }
+}
+
+/**
+ * Delete the currently selected (empty) project folder from Google Drive.
+ * Backend will refuse if the folder still contains sessions.
+ */
+async function deleteProject() {
+    const project  = document.getElementById('filterProject').value;
+    const category = document.getElementById('filterCategory').value;
+
+    if (!project || !category) return;
+
+    if (!confirm(`Projekt "${project}" (${category}) wirklich löschen?\n\nDer Ordner wird auf Google Drive in den Papierkorb verschoben.\nNur möglich wenn das Projekt keine Sessions enthält.`)) return;
+
+    const btn = document.getElementById('btnDeleteProject');
+    btn.textContent  = '…';
+    btn.disabled     = true;
+
+    try {
+        const response = await fetch(BACKEND_URL, {
+            method:   'POST',
+            redirect: 'follow',
+            headers:  { 'Content-Type': 'text/plain' },
+            body:     JSON.stringify({ action: 'deleteProject', category, project })
+        });
+        const result = await response.json();
+
+        if (result.status === 'success') {
+            showToast(`Projekt "${project}" gelöscht ✓`, 'success');
+
+            // Remove from local projects cache
+            if (projects[category]) {
+                projects[category] = projects[category].filter(p => p !== project);
+            }
+
+            // Reset filters and re-render
+            document.getElementById('filterProject').value = '';
+            updateProjectDropdown();
+            updateDeleteProjectButton();
+            applyFilters();
+        } else {
+            showToast('Fehler: ' + (result.message || 'Unbekannt'), 'error');
+        }
+    } catch (e) {
+        console.error('[archiv.js] deleteProject error:', e);
+        showToast('Verbindungsfehler', 'error');
+    } finally {
+        btn.textContent = '🗑';
+        btn.disabled    = false;
+    }
+}
 
 // ========================================
 // SESSIONS LIST
