@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asinito – Session</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/session.css">
+    <link rel="icon" type="image/png" href="Asinito-Logo.png">
+</head>
+<body>
+    <header>
+        <div class="header-left">
+            <a href="index.html">
+                <img src="Asinito-Logo.png" alt="Asinito" class="logo">
+            </a>
+        </div>
+        <nav class="header-nav">
+            <a href="index.html" class="nav-link">Home</a>
+            <a href="archiv.html" class="nav-link">Archiv</a>
+        </nav>
+    </header>
+
+    <main class="session-page">
+
+        <!-- Loading State -->
+        <div class="page-loading" id="pageLoading">
+            <div class="spinner-lg"></div>
+            <p>Session wird geladen…</p>
+        </div>
+
+        <!-- Error State -->
+        <div class="page-error hidden" id="pageError">
+            <div class="error-icon">⚠️</div>
+            <p id="errorMessage">Fehler beim Laden der Session.</p>
+            <a href="archiv.html" class="btn btn-primary">← Zurück zum Archiv</a>
+        </div>
+
+        <!-- Session Content -->
+        <div class="session-content hidden" id="sessionContent">
+
+            <!-- Sticky Header Bar with Copy Buttons -->
+            <div class="session-topbar">
+                <div class="topbar-left">
+                    <a href="archiv.html" class="btn-back">← Archiv</a>
+                    <div class="topbar-meta">
+                        <span class="badge badge-privat" id="topbarCategory"></span>
+                        <span class="badge badge-secondary" id="topbarProject"></span>
+                        <span class="topbar-date" id="topbarDate"></span>
+                    </div>
+                </div>
+                <div class="topbar-actions">
+                    <button class="btn btn-secondary" onclick="copyAsMarkdown()">📋 Als Markdown kopieren</button>
+                    <button class="btn btn-secondary" onclick="copyAsTxt()">📄 Als TXT kopieren</button>
+                </div>
+            </div>
+
+            <!-- Title -->
+            <div class="session-title-block">
+                <h1 id="sessionTitle"></h1>
+            </div>
+
+            <!-- 1. Problemstellung -->
+            <section class="content-section">
+                <h2 class="section-heading">Problemstellung</h2>
+                <div class="content-box" id="sectionProblem"></div>
+            </section>
+
+            <!-- 2. Fragen & Antworten -->
+            <section class="content-section" id="sectionQAWrap">
+                <h2 class="section-heading">Fragen & Antworten</h2>
+                <div class="qa-list" id="sectionQA"></div>
+            </section>
+
+            <!-- 3. KI-Lösungen -->
+            <section class="content-section" id="sectionSolutionsWrap">
+                <h2 class="section-heading">KI-Lösungen</h2>
+                <div class="solutions-grid">
+                    <div class="solution-card chatgpt">
+                        <h3>ChatGPT</h3>
+                        <div class="solution-text" id="solutionChatgpt"></div>
+                    </div>
+                    <div class="solution-card claude">
+                        <h3>Claude</h3>
+                        <div class="solution-text" id="solutionClaude"></div>
+                    </div>
+                    <div class="solution-card gemini">
+                        <h3>Gemini</h3>
+                        <div class="solution-text" id="solutionGemini"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 4. Synthese -->
+            <section class="content-section" id="sectionSynthesisWrap">
+                <h2 class="section-heading">Synthese</h2>
+                <div class="content-box synthesis-box" id="sectionSynthesis"></div>
+            </section>
+
+            <!-- Bottom Copy Buttons -->
+            <div class="bottom-actions">
+                <button class="btn btn-secondary" onclick="copyAsMarkdown()">📋 Als Markdown kopieren</button>
+                <button class="btn btn-secondary" onclick="copyAsTxt()">📄 Als TXT kopieren</button>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Toast -->
+    <div id="toast" class="toast hidden"></div>
+
+    <script src="js/storage.js?v=3.7"></script>
+    <script src="js/session.js?v=1.0"></script>
+</body>
+</html>

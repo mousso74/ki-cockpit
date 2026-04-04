@@ -10,7 +10,7 @@ body.archiv-page {
 
 .archiv-layout {
     display: grid;
-    grid-template-columns: 320px 1fr;
+    grid-template-columns: 1fr 1fr;
     height: calc(100vh - 64px); /* subtract header height */
     overflow: hidden;
 }

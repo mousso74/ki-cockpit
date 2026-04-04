@@ -253,10 +253,10 @@ function renderDetail(sessionData) {
 // ITEM ACTIONS
 // ========================================
 
-/** Open session in new tab (archive stays open) */
+/** Open session in new tab – full single-column detail page */
 function loadItem(event, id) {
     event.stopPropagation();
-    window.open(`archiv.html?session=${encodeURIComponent(id)}`, '_blank');
+    window.open(`session.html?id=${encodeURIComponent(id)}`, '_blank');
 }
 
 /** Toggle inline edit form */

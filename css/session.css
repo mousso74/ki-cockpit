@@ -1,0 +1,381 @@
+/* ========================================
+   KI-Cockpit Session Detail V1.0
+   Einzelne Session – Vollansicht
+   ======================================== */
+
+/* ---- Page Layout ---- */
+
+.session-page {
+    flex: 1;
+    overflow-y: auto;
+    background: var(--bg-secondary);
+}
+
+/* ---- Loading / Error ---- */
+
+.page-loading,
+.page-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.25rem;
+    min-height: 60vh;
+    color: var(--text-secondary);
+    font-size: 1rem;
+}
+
+.page-error .error-icon {
+    font-size: 3rem;
+}
+
+.spinner-lg {
+    width: 44px;
+    height: 44px;
+    border: 3px solid var(--border-color);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.hidden { display: none !important; }
+
+/* ---- Session Content Wrapper ---- */
+
+.session-content {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 2rem 4rem;
+}
+
+/* ---- Sticky Top Bar ---- */
+
+.session-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 0;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+}
+
+.topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.btn-back {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    text-decoration: none;
+    padding: 0.35rem 0.75rem;
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+    background: var(--bg-primary);
+    transition: var(--transition);
+    white-space: nowrap;
+}
+
+.btn-back:hover {
+    color: var(--primary);
+    border-color: var(--primary);
+    background: var(--primary-light);
+}
+
+.topbar-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.topbar-date {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+}
+
+.topbar-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.topbar-actions .btn {
+    font-size: 0.85rem;
+    padding: 0.4rem 0.9rem;
+}
+
+/* ---- Title ---- */
+
+.session-title-block {
+    margin-bottom: 2rem;
+}
+
+.session-title-block h1 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.3;
+}
+
+/* ---- Content Sections ---- */
+
+.content-section {
+    margin-bottom: 2.5rem;
+}
+
+.section-heading {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--border-color);
+}
+
+/* Generic content box */
+.content-box {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 1.25rem 1.5rem;
+    font-size: 0.95rem;
+    line-height: 1.7;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* Synthesis gets a left accent */
+.synthesis-box {
+    border-left: 4px solid var(--primary);
+}
+
+.synthesis-box h2, .synthesis-box h3, .synthesis-box h4 {
+    margin: 1rem 0 0.5rem;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.synthesis-box h2 { font-size: 1.1rem; }
+.synthesis-box h3 { font-size: 1rem; }
+.synthesis-box h4 { font-size: 0.95rem; }
+
+.synthesis-box p {
+    margin-bottom: 0.75rem;
+    line-height: 1.7;
+}
+
+.synthesis-box strong { font-weight: 600; }
+.synthesis-box em     { font-style: italic; }
+
+.synthesis-box code {
+    background: var(--bg-secondary);
+    padding: 0.1em 0.4em;
+    border-radius: 3px;
+    font-size: 0.85em;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+/* ---- Q&A List ---- */
+
+.qa-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.qa-item {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+}
+
+.qa-question {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.875rem 1.25rem;
+    background: var(--bg-secondary);
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.qa-num {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 50%;
+    background: var(--primary);
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-top: 0.05rem;
+}
+
+.qa-answer {
+    padding: 0.875rem 1.25rem;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* ---- KI Solutions Grid ---- */
+
+.solutions-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+}
+
+@media (max-width: 700px) {
+    .solutions-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.solution-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.solution-card h3 {
+    padding: 0.6rem 1rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.solution-card.chatgpt h3 { color: var(--chatgpt); background: rgba(16,163,127,0.06); }
+.solution-card.claude  h3 { color: var(--claude);  background: rgba(217,119,6,0.06); }
+.solution-card.gemini  h3 { color: var(--gemini);  background: rgba(66,133,244,0.06); }
+
+.solution-card.chatgpt { border-top: 3px solid var(--chatgpt); }
+.solution-card.claude  { border-top: 3px solid var(--claude); }
+.solution-card.gemini  { border-top: 3px solid var(--gemini); }
+
+.solution-text {
+    padding: 1rem;
+    font-size: 0.875rem;
+    line-height: 1.65;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    word-break: break-word;
+    flex: 1;
+    overflow-y: auto;
+    max-height: 320px;
+}
+
+/* ---- Bottom Actions ---- */
+
+.bottom-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+    padding-top: 2rem;
+    border-top: 1px solid var(--border-color);
+    margin-top: 1rem;
+}
+
+/* ---- Badges (reused from archiv.css) ---- */
+
+.badge {
+    display: inline-block;
+    padding: 0.15rem 0.55rem;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    white-space: nowrap;
+}
+
+.badge-geschäftlich {
+    background: rgba(217, 119, 6, 0.12);
+    color: var(--claude);
+}
+
+.badge-privat {
+    background: rgba(16, 185, 129, 0.12);
+    color: var(--success);
+}
+
+.badge-secondary {
+    background: rgba(107, 114, 128, 0.12);
+    color: var(--text-secondary);
+}
+
+/* ---- Toast ---- */
+
+.toast {
+    position: fixed;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-lg), 0 0 0 1px var(--border-color);
+    z-index: 2000;
+    font-size: 0.9rem;
+    font-weight: 500;
+    animation: slideUp 0.25s ease;
+    white-space: nowrap;
+}
+
+.toast.hidden  { display: none; }
+.toast.success { border-left: 4px solid var(--success); }
+.toast.error   { border-left: 4px solid var(--error); }
+.toast.warning { border-left: 4px solid var(--warning); }
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateX(-50%) translateY(12px); }
+    to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* ---- Responsive ---- */
+
+@media (max-width: 600px) {
+    .session-content {
+        padding: 0 1rem 3rem;
+    }
+
+    .session-topbar {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .session-title-block h1 {
+        font-size: 1.3rem;
+    }
+}
