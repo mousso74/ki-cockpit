@@ -69,6 +69,44 @@ body.archiv-page {
     box-shadow: 0 0 0 3px var(--primary-light);
 }
 
+/* Search field (shown inside filter-section when cat+project selected) */
+.filter-search {
+    border-top: 1px solid var(--border-color);
+    padding-top: 0.75rem;
+    margin-top: 0.1rem;
+}
+
+.search-input-wrap {
+    position: relative;
+}
+
+.search-input-wrap input[type="search"] {
+    width: 100%;
+    padding: 0.5rem 2rem 0.5rem 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    transition: var(--transition);
+}
+
+.search-input-wrap input[type="search"]:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+.search-icon {
+    position: absolute;
+    right: 0.6rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.85rem;
+    pointer-events: none;
+    opacity: 0.5;
+}
+
 /* Project row: dropdown + delete button side by side */
 .filter-project-row {
     display: flex;

@@ -101,6 +101,68 @@ function renderSession(d) {
 
 
 // ========================================
+// TITLE EDITING
+// ========================================
+
+function startTitleEdit() {
+    const currentTitle = document.getElementById('sessionTitle').textContent;
+    document.getElementById('titleInput').value = currentTitle;
+    document.getElementById('titleView').classList.add('hidden');
+    document.getElementById('titleEdit').classList.remove('hidden');
+    document.getElementById('titleInput').focus();
+    document.getElementById('titleInput').select();
+}
+
+function cancelTitleEdit() {
+    document.getElementById('titleEdit').classList.add('hidden');
+    document.getElementById('titleView').classList.remove('hidden');
+}
+
+async function saveTitle() {
+    const newTitle = document.getElementById('titleInput').value.trim();
+    if (!newTitle) {
+        showToast('Titel darf nicht leer sein', 'warning');
+        return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const id     = params.get('id');
+    if (!id) return;
+
+    const btn = document.getElementById('btnSaveTitle');
+    btn.textContent = 'Speichert…';
+    btn.disabled    = true;
+
+    try {
+        const response = await fetch(BACKEND_URL, {
+            method:   'POST',
+            redirect: 'follow',
+            headers:  { 'Content-Type': 'text/plain' },
+            body:     JSON.stringify({ action: 'renameSession', id, newTitle })
+        });
+        const result = await response.json();
+
+        if (result.status === 'success') {
+            // Update UI
+            document.getElementById('sessionTitle').textContent = newTitle;
+            document.title = `Asinito – ${newTitle}`;
+            // Update local data
+            if (sessionData) { sessionData.name = newTitle; }
+            cancelTitleEdit();
+            showToast('Titel gespeichert ✓', 'success');
+        } else {
+            showToast('Fehler: ' + (result.message || 'Unbekannt'), 'error');
+        }
+    } catch (e) {
+        console.error('[session.js] saveTitle error:', e);
+        showToast('Verbindungsfehler', 'error');
+    } finally {
+        btn.textContent = 'Speichern';
+        btn.disabled    = false;
+    }
+}
+
+// ========================================
 // COPY ACTIONS
 // ========================================
 

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Asinito - Archiv</title>
     <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/archiv.css?v=4.1">
+    <link rel="stylesheet" href="css/archiv.css?v=4.2">
     <link rel="icon" type="image/png" href="Asinito-Logo.png">
 </head>
 <body class="archiv-page">
@@ -48,6 +48,15 @@
                             onclick="deleteProject()"
                             title="Leeres Projekt löschen">🗑</button>
                     </div>
+                </div>
+            </div>
+
+            <!-- Search (visible only when category + project selected) -->
+            <div class="filter-group filter-search hidden" id="searchGroup">
+                <label for="searchInput">Suche in Titeln</label>
+                <div class="search-input-wrap">
+                    <input type="search" id="searchInput" placeholder="Schlagwort eingeben…" autocomplete="off">
+                    <span class="search-icon">🔍</span>
                 </div>
             </div>
 

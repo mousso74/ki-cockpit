@@ -55,9 +55,19 @@
                 </div>
             </div>
 
-            <!-- Title -->
+            <!-- Title (editable) -->
             <div class="session-title-block">
-                <h1 id="sessionTitle"></h1>
+                <!-- View mode -->
+                <div class="title-view" id="titleView">
+                    <h1 id="sessionTitle"></h1>
+                    <button class="btn-title-edit" onclick="startTitleEdit()" title="Titel bearbeiten">✏️</button>
+                </div>
+                <!-- Edit mode (hidden) -->
+                <div class="title-edit hidden" id="titleEdit">
+                    <input type="text" id="titleInput" class="title-input" placeholder="Titel eingeben…">
+                    <button class="btn btn-primary" onclick="saveTitle()" id="btnSaveTitle">Speichern</button>
+                    <button class="btn btn-secondary" onclick="cancelTitleEdit()">Abbrechen</button>
+                </div>
             </div>
 
             <!-- 1. Problemstellung -->

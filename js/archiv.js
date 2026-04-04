@@ -20,8 +20,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Filter listeners
     document.getElementById('filterCategory').addEventListener('change', onCategoryChange);
     document.getElementById('filterProject').addEventListener('change', () => {
-        updateDeleteProjectButton();
+        updateFilterUI();
         applyFilters();
+    });
+
+    // Search (debounced)
+    let searchTimer;
+    document.getElementById('searchInput').addEventListener('input', () => {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(applyFilters, 250);
     });
 
     // Load data
@@ -37,6 +44,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function loadData() {
     await Promise.all([loadProjects(), loadSessions()]);
+    updateFilterUI();
 }
 
 async function refreshSessions() {
@@ -69,7 +77,7 @@ async function loadProjects() {
 
 function onCategoryChange() {
     updateProjectDropdown();
-    updateDeleteProjectButton();
+    updateFilterUI();
     applyFilters();
 }
 
@@ -92,13 +100,23 @@ function updateProjectDropdown() {
 }
 
 
-/** Show/hide the 🗑 project-delete button depending on selection */
-function updateDeleteProjectButton() {
+/** Show/hide the 🗑 project-delete button AND search field depending on selection */
+function updateFilterUI() {
     const project  = document.getElementById('filterProject').value;
     const category = document.getElementById('filterCategory').value;
-    const btn      = document.getElementById('btnDeleteProject');
-    if (btn) {
-        btn.classList.toggle('hidden', !project || !category);
+    const bothSelected = !!(project && category);
+
+    // Delete-project button
+    const btn = document.getElementById('btnDeleteProject');
+    if (btn) btn.classList.toggle('hidden', !bothSelected);
+
+    // Search field
+    const searchGroup = document.getElementById('searchGroup');
+    if (searchGroup) {
+        searchGroup.classList.toggle('hidden', !bothSelected);
+        if (!bothSelected) {
+            document.getElementById('searchInput').value = '';
+        }
     }
 }
 
@@ -178,12 +196,17 @@ async function loadSessions() {
 }
 
 function applyFilters() {
-    const category = document.getElementById('filterCategory').value;
-    const project  = document.getElementById('filterProject').value;
+    const category   = document.getElementById('filterCategory').value;
+    const project    = document.getElementById('filterProject').value;
+    const searchTerm = document.getElementById('searchInput').value.trim().toLowerCase();
 
     const filtered = allSessions.filter(s => {
         if (category && s.category !== category) return false;
         if (project  && s.project  !== project)  return false;
+        if (searchTerm) {
+            const title = (s.displayTitle || s.name || '').toLowerCase();
+            if (!title.includes(searchTerm)) return false;
+        }
         return true;
     });
 
