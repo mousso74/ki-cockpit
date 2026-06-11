@@ -1391,3 +1391,145 @@ footer {
     opacity: 0.5;
     cursor: not-allowed;
 }
+
+/* ========================================
+   LLM-Diskussion Styles
+   ======================================== */
+
+[data-discussion-state] { display: none; }
+
+.d-copyblock {
+  position: relative;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 16px;
+  font-family: 'SFMono-Regular', ui-monospace, Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.d-copybtn {
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--border-radius);
+  padding: 8px 16px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+}
+.d-copybtn:hover { filter: brightness(0.95); }
+
+.d-gate {
+  border: 2px solid var(--primary);
+  border-radius: var(--border-radius-lg);
+  padding: 20px;
+  margin-top: 16px;
+}
+.d-gate h4 { margin: 0 0 8px; }
+.d-gate textarea { width: 100%; box-sizing: border-box; }
+
+.d-paste-row {
+  display: grid;
+  grid-template-columns: 110px 1fr auto;
+  gap: 10px;
+  align-items: start;
+  margin-bottom: 10px;
+}
+.d-paste-label { font-weight: 600; padding-top: 8px; }
+.d-paste-row textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 8px;
+  font-size: 13px;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+}
+.d-paste-row textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-light);
+}
+.d-paste-status { font-size: 12px; padding-top: 8px; white-space: nowrap; }
+.d-paste-status.d-ok   { color: var(--success); }
+.d-paste-status.d-err  { color: var(--error); }
+.d-paste-status.d-skip { color: var(--text-muted); }
+
+.d-heatmap {
+  border-collapse: collapse;
+  margin: 8px 0 16px;
+  font-family: 'Inter', sans-serif;
+}
+.d-heatmap th, .d-heatmap td {
+  width: 44px; height: 44px;
+  text-align: center;
+  border: 1px solid var(--border-color);
+  font-size: 13px;
+}
+.d-heatmap thead th, .d-heatmap tbody th {
+  background: var(--bg-input);
+  font-weight: 600;
+  cursor: help;
+}
+.d-cell {
+  font-weight: 600;
+  color: #fff;
+  background: hsl(16, 100%, calc(92% - (var(--score, 0) * 4.6%)));
+}
+.d-cell[style*="--score:0"] { color: var(--text-muted); }
+.d-cell[style*="--score:1"], .d-cell[style*="--score:2"],
+.d-cell[style*="--score:3"] { color: var(--text-primary); }
+.d-cell.d-diag { background: var(--bg-secondary); color: var(--text-muted); }
+
+.d-konfliktliste { list-style: none; padding: 0; margin: 8px 0; }
+.d-konfliktliste li {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px; margin-bottom: 6px;
+  background: var(--bg-input); border-radius: var(--border-radius); font-size: 14px;
+}
+.d-konflikt-score {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 28px; height: 28px;
+  background: var(--primary); color: #fff;
+  border-radius: 50%; font-weight: 700; font-size: 13px;
+}
+
+.d-konvergenz {
+  background: #fff8e1; border: 1px solid #ffd54f;
+  border-radius: var(--border-radius); padding: 12px 16px; margin: 8px 0;
+}
+.d-divergent {
+  background: #f0f9f2; border: 1px solid #a5d6a7;
+  border-radius: var(--border-radius); padding: 12px 16px; margin: 8px 0;
+}
+.d-stufe1-hinweis { font-size: 13px; color: var(--text-muted); margin: 6px 0 0; }
+
+.d-synthese-output {
+  border: 2px solid var(--primary);
+  border-radius: var(--border-radius-lg);
+  padding: 20px;
+  margin: 12px 0;
+  line-height: 1.6;
+}
+.d-synthese-output h2 { font-size: 18px; margin-top: 16px; }
+.d-synthese-output h3 { font-size: 15px; margin-top: 12px; }
+
+.d-k9 {
+  font-size: 13px; color: var(--text-muted);
+  border-left: 3px solid var(--primary);
+  padding: 4px 0 4px 12px; margin: 8px 0;
+}
+
+.d-metrik { margin: 16px 0; padding: 12px 16px; background: var(--bg-input); border-radius: var(--border-radius); }
+.d-metrik legend { font-weight: 600; font-size: 14px; }
+
+@media (max-width: 600px) {
+  .d-paste-row { grid-template-columns: 1fr; }
+  .d-heatmap th, .d-heatmap td { width: 36px; height: 36px; font-size: 12px; }
+}

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asinito - LLM-Diskussion</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" type="image/png" href="Asinito-Logo.png">
+</head>
+<body>
+    <header>
+        <div class="header-left">
+            <a href="index.html">
+                <img src="Asinito-Logo.png" alt="Asinito" class="logo">
+            </a>
+            <div class="state-indicator">
+                <span class="state-dot active" data-state="0"></span>
+                <span class="state-dot" data-state="1"></span>
+                <span class="state-dot" data-state="2"></span>
+                <span class="state-dot" data-state="3"></span>
+                <span class="state-dot" data-state="4"></span>
+            </div>
+        </div>
+        <nav class="header-nav">
+            <a href="index.html" class="nav-link">Home</a>
+            <a href="extended.html" class="nav-link">Erweitert</a>
+            <a href="discussion.html" class="nav-link active">LLM-Diskussion</a>
+            <a href="archiv.html" class="nav-link">Archiv</a>
+        </nav>
+    </header>
+
+    <main>
+        <section id="llm-diskussion">
+
+            <!-- D0: Eingabe -->
+            <div data-discussion-state="D0" style="display:block">
+                <div class="card">
+                    <h2>LLM-Diskussion</h2>
+                    <p class="d-k9">Nur für Ermessens- und Entscheidungsfragen. Für reine
+                        Faktenrecherche ungeeignet -- dort addiert das Verfahren nur Halluzinationsfläche.</p>
+
+                    <div class="form-group">
+                        <label for="d-frage">Entscheidungsfrage</label>
+                        <textarea id="d-frage" rows="3" placeholder="z. B.: Sollen wir Projekt X als Bauträger selbst realisieren oder das Grundstück mit Baurecht verkaufen?"></textarea>
+                    </div>
+
+                    <div style="display:flex; gap:16px; flex-wrap:wrap; margin-top:12px">
+                        <div class="form-group">
+                            <label for="d-kategorie">Kategorie</label>
+                            <select id="d-kategorie">
+                                <option value="geschäftlich">Geschäftlich</option>
+                                <option value="privat">Privat</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="d-projekt">Projekt</label>
+                            <select id="d-projekt">
+                                <option value="Allgemein">Allgemein</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="d-biograf">Biograf-Modell (Kontext-Dossier)</label>
+                            <select id="d-biograf">
+                                <option value="ChatGPT" selected>ChatGPT</option>
+                                <option value="Claude">Claude</option>
+                                <option value="Gemini">Gemini</option>
+                                <option value="Vibe">Vibe</option>
+                                <option value="DeepSeek">DeepSeek</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="actions">
+                        <button class="btn btn-primary" onclick="discussionStart()">
+                            Dossier anfordern
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- D1: Dossier-Gate -->
+            <div data-discussion-state="D1">
+                <div class="card">
+                    <h3>Kontext-Dossier von <span id="d-biograf-target">ChatGPT</span></h3>
+                    <p class="description">Diesen Prompt im gewählten Modell ausführen und die Antwort unten einfügen:</p>
+                    <div class="d-copyblock" id="d-biograf-prompt"></div>
+                    <button class="d-copybtn" onclick="copyDiscussion('d-biograf-prompt')" style="margin:8px 0">
+                        Prompt kopieren
+                    </button>
+
+                    <div class="d-gate">
+                        <h4>Dossier prüfen &amp; freigeben (Gate)</h4>
+                        <p class="description">Vor der Freigabe editierbar -- entferne alles, was nicht raus soll
+                            (Klarnamen, Adressen, Vertragsinterna).</p>
+                        <textarea id="d-dossier-paste" rows="8" placeholder="Dossier-Antwort hier einfügen..."></textarea>
+                        <div class="actions">
+                            <button class="btn btn-primary" onclick="discussionUseDossier(false)">
+                                Freigeben &amp; Broadcast starten
+                            </button>
+                        </div>
+
+                        <details style="margin-top:12px">
+                            <summary>Alternativ: Dossier selbst eintippen</summary>
+                            <textarea id="d-dossier-eigen" rows="6" placeholder="Eigenes Dossier..."></textarea>
+                            <div class="actions">
+                                <button class="btn btn-secondary" onclick="discussionUseDossier(true)">
+                                    Eigenes Dossier freigeben
+                                </button>
+                            </div>
+                        </details>
+                    </div>
+                </div>
+            </div>
+
+            <!-- D2: Broadcast -->
+            <div data-discussion-state="D2">
+                <div class="card">
+                    <h3>Broadcast an 5 Modelle</h3>
+                    <p class="description">Diesen <strong>einen</strong> Prompt nacheinander in ChatGPT, Claude, Vibe,
+                        Gemini und DeepSeek einfügen. Jede <code>[POSITION]</code>-Antwort ins
+                        passende Feld zurückkopieren (mind. 3 nötig).</p>
+                    <div class="d-copyblock" id="d-broadcast-prompt"></div>
+                    <button class="d-copybtn" onclick="copyDiscussion('d-broadcast-prompt')" style="margin:8px 0">
+                        Broadcast-Prompt kopieren
+                    </button>
+
+                    <div id="d-paste-felder" style="margin-top:16px"></div>
+
+                    <div class="actions">
+                        <button class="btn btn-primary" onclick="discussionCollectAnswers()">
+                            Antworten auswerten &rarr; Divergenz
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- D3: Divergenz -->
+            <div data-discussion-state="D3">
+                <div class="card">
+                    <h3>Divergenz-Analyse</h3>
+                    <div id="d-heatmap-wrap"></div>
+                    <div id="d-divergenz-info"></div>
+                    <div class="actions">
+                        <button class="btn btn-primary" onclick="discussionRunSynthesis()">
+                            Synthese erstellen
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- D6: Synthese + Speichern -->
+            <div data-discussion-state="D6">
+                <div class="card">
+                    <h3>Entscheidungsvorlage</h3>
+                    <div class="d-synthese-output" id="d-synthese-output"></div>
+
+                    <fieldset class="d-metrik">
+                        <legend>Erfolgsmetrik (für das Stufe-2-Gate)</legend>
+                        <p class="description">Hat dieser Lauf mindestens einen Einwand oder Gesichtspunkt geliefert,
+                            den eine einzelne gut gepromptete Anfrage nicht gebracht hätte -- und der
+                            deine Entscheidung verändert oder abgesichert hat?</p>
+                        <label><input type="radio" name="d-metrik" value="ja"> Ja</label>
+                        <label style="margin-left:16px"><input type="radio" name="d-metrik" value="nein"> Nein</label>
+                    </fieldset>
+
+                    <div class="actions">
+                        <button class="btn btn-primary" onclick="discussionSave()">In Archiv speichern</button>
+                        <button class="btn btn-secondary" onclick="discussionExportMarkdown()">Als Markdown exportieren</button>
+                        <button class="btn btn-secondary" onclick="discussionReset()">Neue Diskussion</button>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast hidden"></div>
+
+    <!-- Usage Stats -->
+    <div id="usageStats" class="usage-stats"></div>
+
+    <script src="js/storage.js?v=3.5.1"></script>
+    <script src="js/prompts_discussion.js?v=1.0"></script>
+    <script src="js/storage_discussion.js?v=1.0"></script>
+    <script src="js/app_discussion.js?v=1.0"></script>
+</body>
+</html>

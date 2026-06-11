@@ -232,7 +232,7 @@ function renderList(sessions) {
 function buildItemHtml(s) {
     const id       = s.id;
     const title    = escapeHtml(s.displayTitle || s.name || 'Unbenannte Session');
-    const date     = formatDate(s.timestamp);
+    const date     = formatDate(s.timestamp || s.createdAt);
     const cat      = s.category || 'privat';
     const catLabel = cat === 'geschäftlich' ? 'Geschäftlich' : 'Privat';
     const proj     = escapeHtml(s.project || 'Allgemein');
@@ -330,9 +330,15 @@ function renderDetail(sessionData) {
     catEl.className   = `badge badge-${cat}`;
 
     document.getElementById('detailProject').textContent = d.project || 'Allgemein';
-    document.getElementById('detailDate').textContent    = formatDate(d.timestamp);
-    document.getElementById('detailProblem').value       = d.problem || '';
-    document.getElementById('detailSynthesis').value     = extractSynthesisText(d.synthesis);
+    document.getElementById('detailDate').textContent    = formatDate(d.timestamp || d.createdAt);
+
+    if (d.sessionType === 'discussion') {
+        document.getElementById('detailProblem').value   = d.frage || '';
+        document.getElementById('detailSynthesis').value = d.synthese || 'Keine Synthese vorhanden';
+    } else {
+        document.getElementById('detailProblem').value   = d.problem || '';
+        document.getElementById('detailSynthesis').value = extractSynthesisText(d.synthesis);
+    }
 }
 
 
@@ -485,7 +491,27 @@ function copyAsTxt() {
 
 function buildMarkdown(d) {
     const title    = d.name || 'Session';
-    const date     = formatDate(d.timestamp);
+    const date     = formatDate(d.timestamp || d.createdAt);
+
+    if (d.sessionType === 'discussion') {
+        let md = `# LLM-Diskussion: ${d.frage || title}\n\n`;
+        md += `**Kategorie:** ${d.category || 'privat'} | **Projekt:** ${d.project || 'Allgemein'} | **Datum:** ${date}\n\n`;
+        md += `---\n\n## Frage\n\n${d.frage || ''}\n\n`;
+        md += `## Kontext-Dossier (${d.biografModell || '?'})\n\n${d.dossier || ''}\n\n`;
+        if (d.mapping && d.antworten) {
+            md += `## Erstantworten\n\n`;
+            Object.keys(d.mapping).forEach(id => {
+                const modell = d.mapping[id];
+                const f = d.antworten[modell]?.fields || {};
+                md += `### ${id} (${modell})\n`;
+                md += `**Kernthese:** ${f.kernthese || '-'}\n\n`;
+                md += `**Konfidenz:** ${f.konfidenz != null ? f.konfidenz : '-'}\n\n`;
+            });
+        }
+        md += `## Synthese\n\n${d.synthese || ''}\n\n---\n*Exportiert aus Asinito KI-Cockpit*`;
+        return md;
+    }
+
     const problem  = d.problem || '';
     const synthesis = extractSynthesisText(d.synthesis);
 
@@ -519,11 +545,21 @@ function buildMarkdown(d) {
 
 function buildTxt(d) {
     const title    = d.name || 'Session';
-    const date     = formatDate(d.timestamp);
+    const date     = formatDate(d.timestamp || d.createdAt);
+    const line = '─'.repeat(50);
+
+    if (d.sessionType === 'discussion') {
+        let txt = `LLM-Diskussion: ${d.frage || title}\n${line}\n`;
+        txt += `Kategorie: ${d.category || 'privat'} | Projekt: ${d.project || 'Allgemein'} | Datum: ${date}\n\n`;
+        txt += `FRAGE\n${line}\n${d.frage || ''}\n\n`;
+        txt += `SYNTHESE\n${line}\n${d.synthese || ''}\n\n`;
+        txt += `${line}\nExportiert aus Asinito KI-Cockpit`;
+        return txt;
+    }
+
     const problem  = d.problem || '';
     const synthesis = extractSynthesisText(d.synthesis);
 
-    const line = '─'.repeat(50);
     let txt = `${title}\n${line}\n`;
     txt += `Kategorie: ${d.category || 'privat'} | Projekt: ${d.project || 'Allgemein'} | Datum: ${date}\n\n`;
     txt += `PROBLEMSTELLUNG\n${line}\n${problem}\n\n`;

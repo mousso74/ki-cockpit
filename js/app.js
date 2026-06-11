@@ -327,6 +327,21 @@ function generatePrompts() {
         return;
     }
 
+    // ── LLM-Diskussion template: hand off to discussion.html ──
+    if (selectedTemplate === 'discussion') {
+        try {
+            sessionStorage.setItem('ki_disc_handoff', JSON.stringify({
+                kategorie: session.category,
+                projekt:   session.project,
+                frage:     problemText
+            }));
+        } catch (e) {
+            console.warn('[app.js] sessionStorage not available for discussion handoff');
+        }
+        window.location.href = 'discussion.html';
+        return;
+    }
+
     console.log('[app.js] Generating Phase 1 prompts');
 
     // Save to session (V3.4: category and project already set above)
