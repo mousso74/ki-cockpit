@@ -285,7 +285,7 @@ async function discussionRunDivergence(positions) {
 async function discussionRunSynthesis() {
   discToast('Erstelle Entscheidungsvorlage ...');
 
-  const positions = [];
+  let positions = [];
   Object.keys(discussionState.mapping).forEach(id => {
     const modell = discussionState.mapping[id];
     const f = discussionState.antworten[modell].fields;
