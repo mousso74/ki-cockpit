@@ -4,8 +4,8 @@
 
 const DISCUSSION_MODELS = ['ChatGPT', 'Claude', 'Vibe', 'Gemini', 'DeepSeek'];
 
-function buildBiografPrompt(frage) {
-  return [
+function buildBiografPrompt(frage, attBlock) {
+  const lines = [
     'Erstelle aus deinem Wissen über mich ein anonymisiertes Kontext-Dossier',
     '(max. 600 Wörter) für folgende Frage:',
     '',
@@ -14,10 +14,13 @@ function buildBiografPrompt(frage) {
     'Struktur: Situation / Fähigkeiten / Ressourcen / harte Constraints / Risikoneigung.',
     'Keine Klarnamen Dritter, keine Adressen, keine Vertragsdetails.',
     'Gib NUR das Dossier aus, keinen weiteren Text.'
-  ].join('\n');
+  ];
+  if (attBlock) lines.push(attBlock);
+  return lines.join('\n');
 }
 
-function buildBroadcastPrompt(frage, dossier) {
+function buildBroadcastPrompt(frage, dossier, attReminder) {
+  const extra = attReminder || '';
   return [
     'Du bist ein präziser Entscheidungs-Berater.',
     '',
@@ -34,6 +37,7 @@ function buildBroadcastPrompt(frage, dossier) {
     '[KONTEXT_DOSSIER]',
     dossier || '(kein Dossier bereitgestellt)',
     '[/KONTEXT_DOSSIER]',
+    extra,
     '',
     'Gib exakt diese Struktur aus und nichts anderes:',
     '',

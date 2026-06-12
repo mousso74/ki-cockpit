@@ -1533,3 +1533,89 @@ footer {
   .d-paste-row { grid-template-columns: 1fr; }
   .d-heatmap th, .d-heatmap td { width: 36px; height: 36px; font-size: 12px; }
 }
+
+/* ===== Dateianhänge ===== */
+.att-section {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color);
+}
+
+.att-section-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.att-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.att-btn {
+  font-size: 13px;
+  padding: 7px 14px;
+}
+
+.att-list {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.att-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.att-icon { flex-shrink: 0; }
+
+.att-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+}
+
+.att-size {
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.att-remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
+  flex-shrink: 0;
+}
+.att-remove:hover { color: var(--error); }
+
+.att-clear {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 2px 0;
+  text-decoration: underline;
+}
+.att-clear:hover { color: var(--error); }

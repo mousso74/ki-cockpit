@@ -37,6 +37,7 @@ let discAvailableProjects = { geschäftlich: [], privat: [] };
 
 document.addEventListener('DOMContentLoaded', () => {
   console.log('[discussion] LLM-Diskussion initialized');
+  if (typeof attachments !== 'undefined') attachments.init('att-container-main');
 
   // Kategorie-Wechsel → Projekt-Dropdown aktualisieren
   const katSelect = document.getElementById('d-kategorie');
@@ -135,7 +136,8 @@ function discussionStart() {
   discussionState.projekt = document.getElementById('d-projekt')?.value || 'Allgemein';
   discussionState.biografModell = document.getElementById('d-biograf')?.value || 'ChatGPT';
 
-  const p0 = buildBiografPrompt(frage);
+  const attBlock = (typeof attachments !== 'undefined') ? attachments.getBlock() : '';
+  const p0 = buildBiografPrompt(frage, attBlock);
   document.getElementById('d-biograf-prompt').textContent = p0;
   document.getElementById('d-biograf-target').textContent = discussionState.biografModell;
   gotoDiscussionState('D1');
@@ -157,7 +159,8 @@ function discussionUseDossier(selfTyped) {
   discussionState.dossier = dossier;
   discussionState.dossierFreigegeben = true;
 
-  const p1 = buildBroadcastPrompt(discussionState.frage, dossier);
+  const attReminder = (typeof attachments !== 'undefined') ? attachments.getReminderBlock() : '';
+  const p1 = buildBroadcastPrompt(discussionState.frage, dossier, attReminder);
   document.getElementById('d-broadcast-prompt').textContent = p1;
 
   const wrap = document.getElementById('d-paste-felder');

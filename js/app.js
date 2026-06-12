@@ -49,6 +49,7 @@ let session = {
 document.addEventListener('DOMContentLoaded', () => {
     console.log('[app.js] Asinito KI-Cockpit V3.4 initialized');
     showState(0);
+    if (typeof attachments !== 'undefined') attachments.init('att-container-main');
 
     // Update usage display
     updateUsageDisplay();
@@ -318,7 +319,8 @@ function generatePrompts() {
                 category:    session.category,
                 project:     session.project,
                 sessionTitle: document.getElementById('sessionTitle').value.trim(),
-                problem:     problemText
+                problem:     problemText,
+                attachments: (typeof attachments !== 'undefined') ? attachments.getNames() : []
             }));
         } catch (e) {
             console.warn('[app.js] sessionStorage not available, using URL params fallback');
@@ -331,9 +333,10 @@ function generatePrompts() {
     if (selectedTemplate === 'discussion') {
         try {
             sessionStorage.setItem('ki_disc_handoff', JSON.stringify({
-                kategorie: session.category,
-                projekt:   session.project,
-                frage:     problemText
+                kategorie:   session.category,
+                projekt:     session.project,
+                frage:       problemText,
+                attachments: (typeof attachments !== 'undefined') ? attachments.getNames() : []
             }));
         } catch (e) {
             console.warn('[app.js] sessionStorage not available for discussion handoff');
@@ -347,8 +350,9 @@ function generatePrompts() {
     // Save to session (V3.4: category and project already set above)
     session.problem = problemText;
 
-    // Generate prompt
-    const prompt = generateQuestionsPrompt(problemText);
+    // Generate prompt (+ Dateianhänge)
+    const attBlock = (typeof attachments !== 'undefined') ? attachments.getBlock() : '';
+    const prompt = generateQuestionsPrompt(problemText + attBlock);
     session.phase1Prompt = prompt;
 
     // Display prompt (show user part only, system prompt is too long)
@@ -747,7 +751,9 @@ function generateSolvePrompts() {
         qaBlock += `F${i+1}: ${questionText}\nA${i+1}: ${answer}\n\n`;
     });
 
-    const prompt = generateSolvePrompt(session.problem, qaBlock);
+    // Anhang-Erinnerung in Phase-2-Prompt einbauen
+    const reminderBlock = (typeof attachments !== 'undefined') ? attachments.getReminderBlock() : '';
+    const prompt = generateSolvePrompt(session.problem + reminderBlock, qaBlock);
     session.phase2Prompt = prompt;
 
     // Display prompt (show user part only, system prompt is too long)

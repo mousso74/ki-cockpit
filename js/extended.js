@@ -150,6 +150,7 @@ function generateCrossReviewPrompt(problem, qaBlock, ownAnswer, others) {
 document.addEventListener('DOMContentLoaded', () => {
     console.log('[extended.js] V1.1 init');
     extShowState(0);
+    if (typeof attachments !== 'undefined') attachments.init('att-container-main');
 
     // ── Check for handoff from index.html ──
     let handoff = null;
@@ -306,7 +307,8 @@ function extGeneratePrompts() {
     if (!problem) { extShowToast('Bitte Problem beschreiben.', 'error'); document.getElementById('problem-input')?.focus(); return; }
     extSession.problem = problem;
 
-    const prompt = generateQuestionsPrompt(problem);
+    const attBlock = (typeof attachments !== 'undefined') ? attachments.getBlock() : '';
+    const prompt = generateQuestionsPrompt(problem + attBlock);
     extSession.phase1Prompt = prompt;
 
     document.getElementById('phase1-prompt').textContent =
@@ -415,7 +417,8 @@ function extGenerateSolvePrompts() {
         answer:   answers[i] || '(nicht beantwortet)'
     }));
 
-    const prompt = generateSolvePrompt(extSession.problem, qaArray);
+    const reminderBlock = (typeof attachments !== 'undefined') ? attachments.getReminderBlock() : '';
+    const prompt = generateSolvePrompt(extSession.problem + reminderBlock, qaArray);
     extSession.phase2Prompt = prompt;
 
     document.getElementById('phase2-prompt').textContent =
@@ -461,8 +464,9 @@ function extGenerateCrossReviewPrompts() {
             .filter(o => o.key !== ki.key)
             .map(o => ({ name: o.name, answer: o.answer }));
 
+        const attReminder = (typeof attachments !== 'undefined') ? attachments.getReminderBlock() : '';
         prompts[ki.key] = generateCrossReviewPrompt(
-            extSession.problem, qaBlock, ki.answer, others
+            extSession.problem + attReminder, qaBlock, ki.answer, others
         );
     });
 
