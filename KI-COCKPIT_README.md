@@ -1,7 +1,7 @@
 # Asinito KI-Cockpit – Vollständige Technische Dokumentation
 
 **Projektname:** Asinito KI-Cockpit  
-**Aktuelle Version:** 5.0  
+**Aktuelle Version:** 5.1  
 **Letztes Update:** Juni 2026  
 **Eigentümer:** Armin (GitHub: mousso74)  
 **Repository:** https://github.com/mousso74/ki-cockpit  
@@ -21,9 +21,10 @@
 8. [Backend: Google Apps Script V3.10.0](#8-backend-google-apps-script-v3100)
 9. [Archiv-System](#9-archiv-system)
 10. [Prompt-Design](#10-prompt-design)
-11. [Versionsgeschichte](#11-versionsgeschichte)
-12. [Bekannte Eigenheiten & Lösungen](#12-bekannte-eigenheiten--lösungen)
-13. [URLs & Zugangsdaten](#13-urls--zugangsdaten)
+11. [Feature 4: Dateianhänge](#11-feature-4-dateianhänge)
+12. [Versionsgeschichte](#12-versionsgeschichte)
+13. [Bekannte Eigenheiten & Lösungen](#13-bekannte-eigenheiten--lösungen)
+14. [URLs & Zugangsdaten](#14-urls--zugangsdaten)
 
 ---
 
@@ -134,6 +135,12 @@ ki-cockpit/
 │   ├── archiv.js           # Archiv-Liste, Filter, Move, Delete, Rename
 │   ├── parser.js           # Antwort-Parser für Standard-Format
 │   ├── prompts.js          # Prompt-Builder für Standard/Cross-Over
+│   │
+│   ├── attachments.js          # Gemeinsamer Dateianhang-Manager (alle Templates):
+│   │                           #   attachments.init(containerId)
+│   │                           #   attachments.getBlock()       → [DATEIANHÄNGE]-Block
+│   │                           #   attachments.getReminderBlock() → Folge-Prompt-Hinweis
+│   │                           #   attachments.hasFiles(), getNames(), reset()
 │   │
 │   ├── prompts_discussion.js   # Prompts + Parser für LLM-Diskussion:
 │   │                           #   buildBiografPrompt, buildBroadcastPrompt
@@ -465,10 +472,75 @@ KONFIDENZ_NEU: <0-100>
 
 ---
 
-## 11. Versionsgeschichte
+## 11. Feature 4: Dateianhänge
+
+**Verfügbar in:** allen drei Templates (Fragen-Analyse, Cross-Over-Analyse, LLM-Diskussion)  
+**Einstieg:** Anhang-Sektion unterhalb des Problem-/Fragefelds in State 0 / D0  
+**Implementiert in:** `js/attachments.js` (V5.1)
+
+### Funktionsweise (Option B — Referenz statt Einbettung)
+
+Da das KI-Cockpit keine Prompts direkt per API sendet, werden Dateiinhalte **nicht** in den Prompt eingebettet. Stattdessen:
+
+1. Benutzer wählt Dateien über den Button "Anhänge hinzufügen" (beliebige Dateitypen)
+2. Der generierte Prompt bekommt automatisch einen `[DATEIANHÄNGE]`-Block mit den Dateinamen
+3. Benutzer kopiert den Prompt **und hängt dieselben Dateien manuell im jeweiligen KI-Chat an**
+4. Das KI-Modell liest die Anhänge selbst und berücksichtigt sie bei der Antwort
+
+### Prompt-Blöcke
+
+**Erster Prompt** (Phase 1 / Biograf / Broadcast) — `getBlock()`:
+```
+[DATEIANHÄNGE]
+Ich habe dir folgende Dateien angehängt.
+Lies ihren Inhalt vollständig und berücksichtige ihn bei deiner Antwort:
+- Projektplan_2026.pdf
+- Kostenkalkulation.xlsx
+[/DATEIANHÄNGE]
+```
+
+**Folge-Prompts** (Phase 2, Cross-Review, Broadcast D2) — `getReminderBlock()`:
+```
+[HINWEIS DATEIANHÄNGE]
+Du hast zu Beginn folgende Dateien erhalten: Projektplan_2026.pdf, Kostenkalkulation.xlsx.
+Berücksichtige deren Inhalt weiterhin in deiner Antwort.
+[/HINWEIS DATEIANHÄNGE]
+```
+
+### Wo der Block eingebaut wird
+
+| Template | Erster Prompt | Folge-Prompts |
+|---|---|---|
+| Fragen-Analyse | Phase-1-Prompt (Rückfragen) | Phase-2-Prompt (Lösungen) |
+| Cross-Over-Analyse | Phase-1-Prompt (Rückfragen) | Phase-2-Prompt + Cross-Review-Prompts |
+| LLM-Diskussion | Biograf-Prompt (D1) | Broadcast-Prompt (D2) |
+
+### UI-Verhalten
+
+- Mehrere Dateien gleichzeitig oder nacheinander hinzufügbar
+- Jede Datei zeigt: Typ-Icon + Name + Dateigröße + Entfernen-Button (×)
+- "Alle entfernen"-Link erscheint ab 2 Dateien
+- Dieselbe Datei kann nicht doppelt hinzugefügt werden (Name + Größe-Check)
+- Kein Reset beim Seitenwechsel innerhalb einer Session
+
+### Technische API (`js/attachments.js`)
+
+| Methode | Beschreibung |
+|---|---|
+| `attachments.init(containerId)` | Rendert UI in angegebenen Container |
+| `attachments.hasFiles()` | `true` wenn mind. 1 Datei gewählt |
+| `attachments.getNames()` | Array der Dateinamen |
+| `attachments.getBlock()` | `[DATEIANHÄNGE]`-Block für ersten Prompt |
+| `attachments.getReminderBlock()` | `[HINWEIS DATEIANHÄNGE]`-Block für Folge-Prompts |
+| `attachments.reset()` | Auswahl leeren und UI neu rendern |
+
+---
+
+## 12. Versionsgeschichte
 
 | Version | Datum | Was ist neu |
 |---|---|---|
+| **V5.1** | Juni 2026 | **Dateianhänge in allen Templates**: Neues `js/attachments.js` (gemeinsamer Manager), Anhang-UI in `index.html`, `extended.html`, `discussion.html`. `[DATEIANHÄNGE]`-Block in Phase-1-Prompts, `[HINWEIS DATEIANHÄNGE]`-Block in Folge-Prompts (Phase 2, Cross-Review, Broadcast). Alle Dateitypen unterstützt (Option B: Referenz + manuelles Anhängen im KI-Chat). |
 | **V5.0** | Juni 2026 | **LLM-Diskussion Stufe 2**: D4 Kreuzkritik, D5 Revision, 7 State-Dots. Neue Funktionen: `discussionStartDebate`, `discussionCollectCritiques`, `discussionCollectRevisions`. Neue Prompts: `buildCritiquePrompt`, `buildRevisionPrompt`. Neue Parser: `parseCritique`, `parseRevision`. Revisionen fließen in Synthese ein (revidierte Kernthese/Konfidenz ersetzt Original). |
 | **V4.0** | Mai 2026 | LLM-Diskussion Stufe 1 komplett: D0 Eingabe, D1 Dossier-Gate, D2 Broadcast (5 Modelle), D3 Divergenz-Heatmap + Direkt-Synthese. Neue Dateien: `discussion.html`, `app_discussion.js`, `prompts_discussion.js`, `storage_discussion.js`. |
 | **V3.10** | Mai 2026 | Backend: `analyzeDivergence` + `synthesizeDiscussion` Actions. Gemini-Fallback-Kette (3.5-flash → 3.1-flash-lite → 2.5-flash). `buildDivergencePrompt`, `buildDiscussionSynthesisPrompt`, `selectMostDivergent`, `clampScore`. |
@@ -483,7 +555,7 @@ KONFIDENZ_NEU: <0-100>
 
 ---
 
-## 12. Bekannte Eigenheiten & Lösungen
+## 13. Bekannte Eigenheiten & Lösungen
 
 ### GAS Cold Start (30–60 Sekunden)
 Bei ersten Anfragen nach längerer Inaktivität braucht Google Apps Script bis zu 60 Sekunden. Betrifft vor allem `analyzeDivergence` und `synthesizeDiscussion`. Kein Bug — normales GAS-Verhalten. Das Frontend zeigt Toast-Meldungen während der Call läuft.
@@ -502,7 +574,7 @@ In `DISCUSSION_MODELS` als fünftes Modell eingetragen. Gemeint ist ein vom Nutz
 
 ---
 
-## 13. URLs & Zugangsdaten
+## 14. URLs & Zugangsdaten
 
 | Resource | Info |
 |---|---|
