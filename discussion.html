@@ -19,6 +19,8 @@
                 <span class="state-dot" data-state="2"></span>
                 <span class="state-dot" data-state="3"></span>
                 <span class="state-dot" data-state="4"></span>
+                <span class="state-dot" data-state="5"></span>
+                <span class="state-dot" data-state="6"></span>
             </div>
         </div>
         <nav class="header-nav">
@@ -141,8 +143,41 @@
                     <div id="d-heatmap-wrap"></div>
                     <div id="d-divergenz-info"></div>
                     <div class="actions">
-                        <button class="btn btn-primary" onclick="discussionRunSynthesis()">
-                            Synthese erstellen
+                        <button class="btn btn-primary" id="d-btn-debatte" onclick="discussionStartDebate()" style="display:none">
+                            Debatte starten (Stufe 2)
+                        </button>
+                        <button class="btn btn-secondary" id="d-btn-synthese-direkt" onclick="discussionRunSynthesis()">
+                            Direkt zur Synthese (Stufe 1)
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- D4: Kreuzkritik -->
+            <div data-discussion-state="D4">
+                <div class="card">
+                    <h3>Kreuzkritik (Stufe 2)</h3>
+                    <p class="description">Jedes der ausgewählten Modelle kritisiert die Positionen der anderen.
+                        Kopiere den Prompt ins jeweilige Modell und füge die Antwort ein.</p>
+                    <div id="d-kritik-felder"></div>
+                    <div class="actions">
+                        <button class="btn btn-primary" onclick="discussionCollectCritiques()">
+                            Kritiken auswerten &rarr; Revision
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- D5: Revision -->
+            <div data-discussion-state="D5">
+                <div class="card">
+                    <h3>Revision (Stufe 2)</h3>
+                    <p class="description">Jedes Modell bekommt die Kritiken der anderen und revidiert seine Position.
+                        Kopiere den Prompt ins jeweilige Modell und füge die Antwort ein.</p>
+                    <div id="d-revision-felder"></div>
+                    <div class="actions">
+                        <button class="btn btn-primary" onclick="discussionCollectRevisions()">
+                            Revisionen auswerten &rarr; Synthese
                         </button>
                     </div>
                 </div>

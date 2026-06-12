@@ -1,1206 +1,519 @@
-# Asinito KI-Cockpit V4.6 – Vollständige Technische Dokumentation
+# Asinito KI-Cockpit – Vollständige Technische Dokumentation
 
-**Projektname:** Asinito KI-Cockpit (ehemals KI-Cockpit)
-**Version:** 4.6
-**Entwicklungszeitraum:** 1. Februar – 4. April 2026
-**Lead-Architekt:** Claude (Anthropic)
-**Assistenten:** Gemini (Google), ChatGPT (OpenAI), DeepSeek
-**Eigentümer:** Armin (GitHub: mousso74)
+**Projektname:** Asinito KI-Cockpit  
+**Aktuelle Version:** 5.0  
+**Letztes Update:** Juni 2026  
+**Eigentümer:** Armin (GitHub: mousso74)  
+**Repository:** https://github.com/mousso74/ki-cockpit  
+**Deployed Backend:** Google Apps Script V3.10.0  
 
 ---
 
 ## Inhaltsverzeichnis
 
-1. [Projektübersicht](#1-projektübersicht)
+1. [Projektübersicht & Zweck](#1-projektübersicht--zweck)
 2. [Architektur](#2-architektur)
-3. [Das Chef/Assistenten-Modell](#3-das-chefassistenten-modell)
-4. [Technologie-Stack](#4-technologie-stack)
-5. [Dateistruktur](#5-dateistruktur)
-6. [Google Drive Ordnerstruktur (V3.0+)](#6-google-drive-ordnerstruktur-v30)
-7. [Workflow-Beschreibung](#7-workflow-beschreibung)
-8. [Prompt-Templates](#8-prompt-templates)
-9. [Backend-Code (Google Apps Script)](#9-backend-code-google-apps-script)
-10. [Frontend-Code (Wichtige Funktionen)](#10-frontend-code-wichtige-funktionen)
+3. [Technologie-Stack](#3-technologie-stack)
+4. [Dateistruktur](#4-dateistruktur)
+5. [Feature 1: Fragen-Analyse (Standard)](#5-feature-1-fragen-analyse-standard)
+6. [Feature 2: Cross-Over-Analyse (Erweitert)](#6-feature-2-cross-over-analyse-erweitert)
+7. [Feature 3: LLM-Diskussion (Stufe 1 + Stufe 2)](#7-feature-3-llm-diskussion-stufe-1--stufe-2)
+8. [Backend: Google Apps Script V3.10.0](#8-backend-google-apps-script-v3100)
+9. [Archiv-System](#9-archiv-system)
+10. [Prompt-Design](#10-prompt-design)
 11. [Versionsgeschichte](#11-versionsgeschichte)
-12. [Bekannte Probleme und Lösungen](#12-bekannte-probleme-und-lösungen)
-13. [URLs und Zugangsdaten](#13-urls-und-zugangsdaten)
+12. [Bekannte Eigenheiten & Lösungen](#12-bekannte-eigenheiten--lösungen)
+13. [URLs & Zugangsdaten](#13-urls--zugangsdaten)
 
 ---
 
-## 1. Projektübersicht
+## 1. Projektübersicht & Zweck
 
-Das KI-Cockpit ist eine Web-Applikation, die bis zu vier KI-Modelle (ChatGPT, Claude, Gemini, DeepSeek) parallel befragt, um komplexe Probleme zu lösen. Es gibt zwei Templates:
+Das Asinito KI-Cockpit ist eine Web-Applikation für strukturierte, multi-modell KI-Befragungen. Es löst ein konkretes Problem: Einzelne KI-Antworten sind von der Persönlichkeit und den Trainingsdaten des jeweiligen Modells geprägt. Das Cockpit nutzt mehrere Modelle parallel und synthetisiert deren Antworten, um blinde Punkte einzelner Modelle auszugleichen.
 
-**Fragen-Analyse (Standard, 6 States):**
-1. Problemdefinition + Kategorie/Projektauswahl
-2. Prompt-Generierung → KIs stellen Rückfragen (2–4 KIs, beliebig wählbar)
-3. Intelligente Deduplizierung via Gemini API
-4. Beantwortung der Fragen
-5. Lösungsgenerierung durch alle beteiligten KIs
-6. Synthese via Gemini + Archivierung in Google Drive
+**Drei Betriebsmodi:**
 
-**Cross-Over-Analyse (Erweitert, 9 States):**
-Wie Fragen-Analyse, aber mit einer zusätzlichen Runde:
-- Runde 1: Jede KI löst das Problem eigenständig
-- Cross-Review: Jede KI bewertet die Antworten **aller anderen** — übernimmt das Gute, benennt das Schlechte
-- Runde 2: Überarbeitete Lösungen werden final von Gemini synthetisiert
+| Modus | Geeignet für | KI-Modelle | Backend-Calls |
+|---|---|---|---|
+| Fragen-Analyse | Komplexe Problemstellungen, Recherche | 2–4 wählbar | `synthesize`, `deduplicateQuestions` |
+| Cross-Over-Analyse | Tiefe Analyse mit Peer-Review | 2–4 wählbar | `synthesize` |
+| LLM-Diskussion | Ermessens- & Entscheidungsfragen | Bis zu 5 fest | `analyzeDivergence`, `synthesizeDiscussion` |
 
-Beide Templates speichern ins selbe Google Drive Archiv ohne Unterscheidung.
+**Wichtige Einschränkung der LLM-Diskussion:** Nur für Fragen geeignet, bei denen echte Meinungsverschiedenheiten zwischen Experten möglich sind (Strategie, Ethik, Prognosen). Für Faktenfragen ungeeignet — dort addiert das Verfahren nur Halluzinationsfläche.
 
 ---
 
 ## 2. Architektur
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                         BENUTZER                                 │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    FRONTEND (GitHub Pages)                       │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐              │
-│  │   HTML      │  │   CSS       │  │   JavaScript │              │
-│  │ index.html  │  │ style.css   │  │ app.js       │              │
-│  │ archiv.html │  │ archiv.css  │  │ prompts.js   │              │
-│  │ extended.html│ │ extended.css│  │ storage.js   │              │
-│  │ session.html│  │ session.css │  │ archiv.js    │              │
-│  └─────────────┘  └─────────────┘  │ extended.js  │              │
-│                                     │ session.js   │              │
-│                                     └─────────────┘              │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              │ fetch() Requests
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                 BACKEND (Google Apps Script)                     │
-│  ┌─────────────────────────────────────────────────────────┐    │
-│  │  doPost() → Router                                       │    │
-│  │    ├── handleSaveSession()      → Drive-Speicherung      │    │
-│  │    ├── handleListSessions()     → Session-Liste          │    │
-│  │    ├── handleGetSession()       → Session abrufen        │    │
-│  │    ├── handleGetProjects()      → Projekt-Liste (V3.0)   │    │
-│  │    ├── handleDeleteSession()    → Soft-Delete (V3.0)     │    │
-│  │    ├── handleSynthesize()       → Gemini-Synthese        │    │
-│  │    ├── handleDeduplicateQuestions() → Gemini-Dedupe      │    │
-│  │    └── handleSaveExport()       → Export speichern       │    │
-│  │                                                          │    │
-│  │  doGet() → Router (V3.0: alle via outputJSON())          │    │
-│  │    ├── listSessions                                      │    │
-│  │    ├── getSession                                        │    │
-│  │    └── getProjects (V3.0)                                │    │
-│  └──────────────────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                      GEMINI API                                  │
-│              gemini-3-pro-preview                                │
-│         (Synthese + Deduplizierung)                              │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    GOOGLE DRIVE                                  │
-│  ┌─────────────────────────────────────────────────────────┐    │
-│  │  KI-Cockpit-Archiv/                                      │    │
-│  │    ├── geschäftlich/                                     │    │
-│  │    │     ├── Projekt-Alpha/                              │    │
-│  │    │     │     └── 2026-02-03_14-30__meeting-notes.json │    │
-│  │    │     └── Kunde-XYZ/                                  │    │
-│  │    │           └── 2026-02-03_16-45__anfrage.json       │    │
-│  │    ├── privat/                                           │    │
-│  │    │     ├── Gesundheit/                                 │    │
-│  │    │     │     └── 2026-02-02_18-35__diagnose.json      │    │
-│  │    │     └── Hobby/                                      │    │
-│  │    │           └── 2026-02-03_09-15__recherche.json     │    │
-│  │    ├── Papierkorb/                                       │    │
-│  │    │     └── [gelöschte Sessions]                        │    │
-│  │    └── Export/                                           │    │
-│  │          └── [PDF/MD Exporte]                            │    │
-│  └─────────────────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                        BENUTZER                               │
+└──────────────────────────────────────────────────────────────┘
+         │ öffnet browser                    │ kopiert/klebt Prompts
+         ▼                                   ▼
+┌─────────────────────┐           ┌──────────────────────────┐
+│   GitHub Pages /    │           │  Externe KI-Modelle:     │
+│   Lokaler Browser   │           │  ChatGPT / Claude /      │
+│                     │           │  Gemini / Vibe /         │
+│  index.html         │           │  DeepSeek                │
+│  discussion.html    │           └──────────────────────────┘
+│  extended.html      │
+│  session.html       │
+│  archiv.html        │
+└──────────┬──────────┘
+           │ fetch() POST/GET
+           ▼
+┌─────────────────────────────────────────────────────────────┐
+│           Google Apps Script (Backend V3.10.0)               │
+│                                                              │
+│  doPost()  →  switch(action):                                │
+│    saveSession / listSessions / getSession                   │
+│    deleteSession / moveSession / renameSession               │
+│    deleteProject / getProjects                               │
+│    synthesize          <- Standard-Synthese                  │
+│    deduplicateQuestions <- Fragen-Deduplizierung             │
+│    analyzeDivergence   <- LLM-Diskussion Stufe 1            │
+│    synthesizeDiscussion <- LLM-Diskussion Synthese           │
+│                                                              │
+│  callGemini() → Modell-Fallback-Kette:                       │
+│    gemini-3.5-flash → gemini-3.1-flash-lite → gemini-2.5-flash│
+└──────────┬──────────────────────────────────────────────────┘
+           │ DriveApp
+           ▼
+┌─────────────────────────────────────────────────────────────┐
+│           Google Drive (Archiv)                               │
+│  KI-Cockpit-Archiv/                                          │
+│    geschäftlich/                                             │
+│      [Projekt]/                                              │
+│        2026-06-12_14-30__projektname.json                    │
+│    privat/                                                   │
+│      [Projekt]/                                              │
+│        ...                                                   │
+└─────────────────────────────────────────────────────────────┘
 ```
 
----
-
-## 3. Das Chef/Assistenten-Modell
-
-Das Projekt wurde mit einem innovativen Multi-KI-Entwicklungsansatz realisiert:
-
-### Rollenverteilung
-
-| Rolle | KI | Aufgaben |
-|-------|-----|----------|
-| **Lead-Architekt (Chef)** | Claude | Gesamtarchitektur, Frontend-Entwicklung via Claude Code, Koordination, Entscheidungen |
-| **Backend-Spezialist** | Gemini | Google Apps Script, Gemini API Integration, Quota-Management, Drive-Speicherung |
-| **Frontend-Spezialist** | ChatGPT | JavaScript-Debugging, formatMarkdown(), Prompt-Engineering |
-
-### Kommunikationsprotokoll
-
-1. **Problem identifiziert** → Claude analysiert
-2. **Spezialist benötigt** → Claude erstellt kontextreichen Prompt für den jeweiligen Assistenten
-3. **Assistent antwortet** → Lösung wird an Claude zurückgegeben
-4. **Claude konsolidiert** → Implementierung via Claude Code
+**Kein direkter API-Zugriff auf KI-Modelle vom Frontend.** Der Benutzer kopiert Prompts manuell in die jeweiligen KI-Chats und klebt die Antworten zurück. Das Backend (GAS) nutzt nur Gemini für Analyse-Aufgaben (Deduplizierung, Divergenz, Synthese).
 
 ---
 
-## 4. Technologie-Stack
+## 3. Technologie-Stack
 
-| Komponente | Technologie | Beschreibung |
-|------------|-------------|--------------|
-| Frontend-Hosting | GitHub Pages | Statisches Hosting, kostenlos |
-| Frontend-Sprache | Vanilla JavaScript | Kein Framework, direkte DOM-Manipulation |
-| Styling | CSS3 | Light Theme (Asinito CI), responsive, 4-KI auto-grid |
-| Backend | Google Apps Script | Serverless, kostenlos |
-| Datenbank | Google Drive | JSON-Dateien in hierarchischer Ordnerstruktur |
-| AI-Engine (Synthese) | Gemini API | gemini-2.5-flash (Deduplizierung + Synthese) |
-| KI-Modelle (manuell) | ChatGPT / Claude / Gemini / DeepSeek | Prompts werden kopiert und manuell eingefügt |
-| Versionskontrolle | Git/GitHub | Repository: mousso74/ki-cockpit |
-| Entwicklungstool | Claude (Cowork) | Agentenbasierte Entwicklung |
-
-### KI-Farben (CSS-Variablen)
-
-| KI | CSS-Variable | Hex | Verwendung |
-|----|-------------|-----|------------|
-| ChatGPT | `--chatgpt` | `#10a37f` | Grün |
-| Claude | `--claude` | `#d97706` | Amber |
-| Gemini | `--gemini` | `#4285f4` | Blau |
-| DeepSeek | `--deepseek` | `#7c3aed` | Lila |
+| Schicht | Technologie | Details |
+|---|---|---|
+| Frontend | Vanilla HTML/CSS/JS | Keine Frameworks, keine Build-Tools |
+| Backend | Google Apps Script | Deployed als Web App (doPost/doGet) |
+| KI-Engine (Backend) | Google Gemini | Fallback-Kette: 3.5-flash → 3.1-flash-lite → 2.5-flash |
+| Dateispeicher | Google Drive | JSON-Dateien in Ordnerhierarchie |
+| Hosting | GitHub Pages oder lokal | Statische Dateien, kein Server nötig |
+| Versionskontrolle | GitHub | github.com/mousso74/ki-cockpit |
 
 ---
 
-## 5. Dateistruktur
+## 4. Dateistruktur
 
 ```
 ki-cockpit/
-├── index.html              # Hauptseite: Template-Auswahl + Fragen-Analyse (6 States)
-├── extended.html           # Erweiterte Analyse: Cross-Over-Template (9 States)
-├── archiv.html             # Archiv: Zwei-Panel-Layout mit Suche + Vorschau
-├── session.html            # Einzelansicht einer Session (mit editierbarem Titel)
+│
+├── index.html              # Home: Problemdefinition, Template-Auswahl, Session-Start
+├── discussion.html         # LLM-Diskussion (komplett eigenständig)
+├── extended.html           # Cross-Over-Analyse (Erweitert)
+├── session.html            # Aktive Session (Fragen-Analyse)
+├── archiv.html             # Archiv-Ansicht aller gespeicherten Sessions
+│
 ├── css/
-│   ├── style.css           # Globales Styling, Asinito CI, alle 4 KI-Farben
-│   ├── archiv.css          # Archiv-spezifisches Layout (V4.0)
-│   ├── extended.css        # Extended-Template-Styles (Flow, Cross-Review-Tabs)
-│   └── session.css         # Session-Einzelansicht-Styles
+│   ├── style.css           # Globales Stylesheet (alle Seiten außer extended/archiv)
+│   ├── extended.css        # Zusatz-Styles für Cross-Over-Analyse
+│   ├── session.css         # Zusatz-Styles für Session-Seite
+│   └── archiv.css          # Styles für Archiv-Ansicht
+│
 ├── js/
-│   ├── app.js              # Standard-Template: Hauptlogik, State-Management
-│   ├── extended.js         # Extended-Template: 9-State Cross-Review Logik
-│   ├── prompts.js          # Prompt-Templates (Questions, Solve, Cross-Review)
-│   ├── storage.js          # API-Kommunikation mit GAS-Backend
-│   ├── archiv.js           # Archiv-Logik: Filtern, Vorschau, Edit, Delete
-│   └── session.js          # Session-Einzelansicht: Render, Titel-Edit, Export
-├── GAS_backend_v3.8_complete.js  # Google Apps Script Backend (deploy via GAS)
-└── KI-COCKPIT_README.md    # Projekt-Dokumentation
+│   ├── storage.js          # BACKEND_URL, saveSession, loadSessions, loadProjects
+│   ├── app.js              # Haupt-App-Logik (index.html, Standard-Flow)
+│   ├── extended.js         # Cross-Over-Analyse Logik
+│   ├── session.js          # Session-Detail-Ansicht
+│   ├── archiv.js           # Archiv-Liste, Filter, Move, Delete, Rename
+│   ├── parser.js           # Antwort-Parser für Standard-Format
+│   ├── prompts.js          # Prompt-Builder für Standard/Cross-Over
+│   │
+│   ├── prompts_discussion.js   # Prompts + Parser für LLM-Diskussion:
+│   │                           #   buildBiografPrompt, buildBroadcastPrompt
+│   │                           #   buildCritiquePrompt, buildRevisionPrompt
+│   │                           #   parsePosition, parseCritique, parseRevision
+│   │
+│   ├── storage_discussion.js   # Backend-Calls für LLM-Diskussion:
+│   │                           #   analyzeDivergence(), synthesizeDiscussion()
+│   │
+│   └── app_discussion.js       # Vollständige State-Machine für LLM-Diskussion:
+│                               #   D0 → D1 → D2 → D3 → D4 → D5 → D6
+│
+├── GAS_backend_v3.10_complete.js  # Aktuell deployter Backend-Code (GAS)
+├── GAS_backend_v3.8_complete.js   # Vorgänger-Version (Referenz)
+├── GAS_backend_v3.7_complete.js   # Ältere Version
+├── GAS_moveSession_snippet.txt    # Code-Snippet für moveSession
+│
+├── Asinito-Logo.png
+├── Asinito-Logo.jpg
+└── KI-COCKPIT_README.md    # Diese Datei
 ```
 
 ---
 
-## 6. Google Drive Ordnerstruktur (V3.0+)
+## 5. Feature 1: Fragen-Analyse (Standard)
 
-Ab Version 3.0 werden Sessions in einer hierarchischen Ordnerstruktur gespeichert:
+**Einstieg:** `index.html` → Template "Fragen-Analyse"
 
+### Flow (6 States, verwaltet in `app.js`)
+
+```
+State 0: Problemdefinition
+  → Benutzer beschreibt Problem, wählt Kategorie/Projekt, wählt 2–4 KI-Modelle
+
+State 1: Rückfragen
+  → Prompt für jede ausgewählte KI generiert → Benutzer klebt Antworten ein
+  → Backend: deduplicateQuestions (Gemini reduziert 20–30 Fragen auf 10–15)
+
+State 2: Fragen beantworten
+  → Deduplizierte Fragen werden angezeigt, Benutzer gibt Antworten ein
+
+State 3: Lösungen
+  → Prompt mit Kontext+Antworten für jede KI → Benutzer klebt Lösungen ein
+
+State 4: Synthese
+  → Backend: synthesize (Gemini fasst alle Lösungen zusammen)
+
+State 5: Archivierung
+  → Backend: saveSession (speichert JSON in Google Drive)
+```
+
+---
+
+## 6. Feature 2: Cross-Over-Analyse (Erweitert)
+
+**Einstieg:** `index.html` → Template "Cross-Over-Analyse" → `extended.html`
+
+### Flow (9 States, verwaltet in `extended.js`)
+
+Wie Fragen-Analyse, aber nach State 3 (Lösungen Runde 1):
+
+```
+State 4: Cross-Review
+  → Jede KI bewertet die Antworten ALLER anderen KIs
+  → Prompt enthält alle Runde-1-Lösungen + Aufforderung zur Peer-Bewertung
+
+State 5: Lösungen Runde 2
+  → Jede KI überarbeitet ihre eigene Antwort auf Basis der Peer-Kritik
+
+State 6: Finale Synthese
+  → Gemini synthetisiert die überarbeiteten Lösungen
+
+State 7: Archivierung
+```
+
+---
+
+## 7. Feature 3: LLM-Diskussion (Stufe 1 + Stufe 2)
+
+**Einstieg:** `discussion.html` (direkt oder über Home-Kachel "LLM-Diskussion")
+
+### Konzept
+
+Speziell für **Ermessens- und Entscheidungsfragen**. Fünf Modelle nehmen strukturierte Positionen ein, die paarweise auf Divergenz analysiert werden. Bei ausreichend Divergenz folgt eine echte Debatte (Stufe 2): Kreuzkritik und Revision. Das Ergebnis ist eine gewichtete Entscheidungsvorlage — kein einfacher Konsens.
+
+### State-Machine (7 States in `app_discussion.js`)
+
+```
+D0: Eingabe
+  → Entscheidungsfrage eingeben, Kategorie/Projekt, Biograf-Modell wählen
+  → [Dossier anfordern] → D1
+
+D1: Dossier-Gate (Kontext-Absicherung)
+  → Biograf-Prompt wird generiert (für das gewählte Modell)
+  → Benutzer führt Prompt im gewählten Modell aus
+  → Antwort einfügen, sensible Daten entfernen (Gate-Funktion)
+  → [Freigeben & Broadcast starten] → D2
+
+D2: Broadcast (alle 5 Modelle)
+  → Ein einziger strukturierter Prompt für alle 5 Modelle:
+    ChatGPT, Claude, Vibe, Gemini, DeepSeek
+  → Jedes Modell gibt eine [POSITION] zurück mit:
+    KERNTHESE, BEGRUENDUNG, ANNAHMEN, RISIKEN, KONFIDENZ (0-100), UMSTIMMBAR_DURCH
+  → Mind. 3 Antworten nötig
+  → [Antworten auswerten] → ruft analyzeDivergence auf → D3
+
+D3: Divergenz-Analyse
+  → Heatmap: paarweise Scores 0–10 (0=identisch, 10=unvereinbar)
+  → Konfliktliste sortiert nach Score mit Kernkonflikt-Beschreibung
+  → Auswahl der 2–3 divergentesten Positionen (für Debatte)
+  → Zwei Optionen:
+    [Debatte starten (Stufe 2)] → D4   (sichtbar bei Divergenz > Schwellwert 4)
+    [Direkt zur Synthese (Stufe 1)] → D6  (immer sichtbar)
+
+D4: Kreuzkritik (Stufe 2) — NEU in V5.0
+  → Für jedes ausgewählte Modell: Kritik-Prompt generiert
+  → Jedes Modell kritisiert die Positionen der anderen
+  → Format der Antwort: [KRITIK] AN_P2: ... AN_P3: ... [/KRITIK]
+  → [Kritiken auswerten → Revision] → D5
+
+D5: Revision (Stufe 2) — NEU in V5.0
+  → Für jedes kritisierte Modell: Revisions-Prompt mit empfangenen Kritiken
+  → Format der Antwort:
+    [REVISION]
+    KERNTHESE_NEU / BEGRUENDUNG_NEU / KONZESSIONEN / HALTUNG / KONFIDENZ_NEU
+    [/REVISION]
+  → [Revisionen auswerten → Synthese] → ruft synthesizeDiscussion auf → D6
+
+D6: Entscheidungsvorlage
+  → Strukturierte Synthese:
+    ## 1. Konsens
+    ## 2. Strittige Punkte
+    ## 3. Restunsicherheit
+    ## 4. Empfehlung (mit Konfidenz + "Was würde uns umstimmen")
+  → Stufe-2-Gewichtung: Revidierte Positionen werden in Synthese priorisiert
+  → Erfolgsmetrik: Hat die Diskussion einen neuen Gesichtspunkt geliefert? (Ja/Nein)
+  → [In Archiv speichern] / [Als Markdown exportieren] / [Neue Diskussion]
+```
+
+### State-Dots
+7 Punkte in der Header-Navigation entsprechen D0–D6.  
+Aktiver Dot = orange, abgeschlossene = grün, ausstehende = grau.
+
+### Schlüsseldateien für LLM-Diskussion
+
+#### `js/prompts_discussion.js`
+
+| Funktion | Beschreibung |
+|---|---|
+| `DISCUSSION_MODELS` | `['ChatGPT', 'Claude', 'Vibe', 'Gemini', 'DeepSeek']` |
+| `buildBiografPrompt(frage)` | D1: Prompt für Kontext-Dossier (anonymisiert, max. 600 Wörter) |
+| `buildBroadcastPrompt(frage, dossier)` | D2: Strukturierter [POSITION]-Prompt für alle 5 Modelle |
+| `parsePosition(raw)` | D2: Parst [POSITION]...[/POSITION]-Block → `{ok, fields}` |
+| `buildCritiquePrompt(kritikerPos, ziele[])` | D4: Prompt für Kreuzkritik |
+| `parseCritique(raw, zielIds[])` | D4: Parst [KRITIK] AN_Px: ...-Blöcke → `{ok, kritiken[]}` |
+| `buildRevisionPrompt(eigenePos, kritiken[])` | D5: Prompt für Positions-Revision |
+| `parseRevision(raw)` | D5: Parst [REVISION]...[/REVISION]-Block → `{ok, fields}` |
+
+#### `js/storage_discussion.js`
+
+| Funktion | Backend-Action |
+|---|---|
+| `analyzeDivergence(positions, threshold)` | `POST analyzeDivergence` |
+| `synthesizeDiscussion(payload)` | `POST synthesizeDiscussion` |
+| `postAction(action, payload)` | Generischer POST-Helper |
+
+#### `js/app_discussion.js`
+
+| Funktion | State-Übergang |
+|---|---|
+| `discussionStart()` | D0 → D1 |
+| `discussionUseDossier(selfTyped)` | D1 → D2 |
+| `discussionCollectAnswers()` | D2 → (async analyzeDivergence) → D3 |
+| `discussionStartDebate()` | D3 → D4 |
+| `discussionCollectCritiques()` | D4 → D5 |
+| `discussionCollectRevisions()` | D5 → (async synthesizeDiscussion) → D6 |
+| `discussionRunSynthesis()` | D3 oder D5 → D6 (mit/ohne Debatte-Daten) |
+| `discussionSave()` | Speichert Session inkl. kritiken + revisionen |
+| `discussionExportMarkdown()` | Download als .md-Datei |
+| `discussionReset()` | Setzt alles zurück → D0 |
+
+### Gespeichertes Session-Format (discussion)
+
+```json
+{
+  "id": "sess_xyz",
+  "sessionType": "discussion",
+  "category": "geschäftlich",
+  "project": "Immobilien",
+  "name": "Sollen wir Projekt X als Bauträger...",
+  "titleSlug": "sollen-wir-projekt-x-als-bautraeger",
+  "createdAt": "2026-06-12T14:30:00Z",
+  "frage": "...",
+  "biografModell": "ChatGPT",
+  "dossier": "...",
+  "antworten": {
+    "ChatGPT": { "raw": "...", "fields": { "kernthese": "...", "konfidenz": 75 } }
+  },
+  "mapping": { "P1": "ChatGPT", "P2": "Claude", "P3": "Gemini" },
+  "divergenz": {
+    "pairs": [{ "a": "P1", "b": "P2", "score": 8, "konflikt": "..." }],
+    "maxScore": 8, "threshold": 4, "converged": false, "auswahl": ["P1","P2"]
+  },
+  "auswahl": ["P1", "P2"],
+  "auswahlModelle": ["ChatGPT", "Claude"],
+  "kritiken": [{ "vonId": "P1", "anId": "P2", "text": "..." }],
+  "revisionen": [{
+    "posId": "P1", "modell": "ChatGPT",
+    "fields": { "kernthese_neu": "...", "konfidenz_neu": 70 }
+  }],
+  "synthese": "...",
+  "metrik": true
+}
+```
+
+---
+
+## 8. Backend: Google Apps Script V3.10.0
+
+**Deployed URL:** Siehe `BACKEND_URL` in `js/storage.js`  
+**Quelldatei:** `GAS_backend_v3.10_complete.js`
+
+### Alle Actions
+
+| Action | Methode | Beschreibung |
+|---|---|---|
+| `saveSession` | POST | JSON-Datei in Drive-Ordner anlegen |
+| `listSessions` | GET/POST | Alle Sessions aus Drive laden |
+| `getSession` | GET/POST | Einzelne Session per ID laden |
+| `deleteSession` | POST | Session in Papierkorb |
+| `moveSession` | POST | Session in anderen Kategorie/Projekt-Ordner verschieben |
+| `renameSession` | POST | Name + Dateiname aktualisieren |
+| `deleteProject` | POST | Leeren Projekt-Ordner löschen |
+| `getProjects` | GET/POST | Projekt-Struktur aus Drive-Ordnern laden |
+| `synthesize` | POST | Gemini synthetisiert Standard-Lösungen |
+| `deduplicateQuestions` | POST | Gemini dedupliziert Rückfragen (20–30 → 10–15) |
+| `analyzeDivergence` | POST | Gemini bewertet Positions-Paare 0–10 |
+| `synthesizeDiscussion` | POST | Gemini erstellt strukturierte Entscheidungsvorlage |
+
+### Gemini-Fallback-Kette
+
+```javascript
+MODELS: ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-2.5-flash"]
+RETRIES_PER_MODEL: 2
+```
+
+Bei HTTP 503 / "high demand" wechselt `callGemini()` automatisch zum nächsten Modell.  
+Bei HTTP 404 (Modell abgekündigt) → nächstes Modell.  
+Bei HTTP 400/403 → sofortiger Abbruch (Request- oder API-Key-Problem).
+
+### analyzeDivergence
+
+- Empfängt N anonyme Positionen (P1, P2, ...) mit KERNTHESE + BEGRUENDUNG
+- Bewertet jedes ungeordnete Paar: `{"a":"P1","b":"P2","score":7,"konflikt":"..."}`
+- Score 0 = identisch, 10 = unvereinbar; Stil/Wortwahl zählt NICHT
+- Auswahl der divergentesten Modelle via Score-Summe (Divergenz-Zentralität)
+- Liefert: `{ pairs, maxScore, threshold, converged, auswahl }`
+
+### synthesizeDiscussion
+
+Erwartet: `{ problem, positions[], kritiken[], revisionen[], converged }`  
+Gewichtungsregel: Argumente, die Kritik und Revision überstanden haben, zählen mehr.  
+Bei `converged: true`: Expliziter Hinweis auf schwache Evidenz in der Synthese.  
+Ausgabestruktur: `[SYNTHESE] ## 1. Konsens / ## 2. Strittige Punkte / ## 3. Restunsicherheit / ## 4. Empfehlung [/SYNTHESE]`
+
+---
+
+## 9. Archiv-System
+
+**Ordnerstruktur in Google Drive:**
 ```
 KI-Cockpit-Archiv/
-├── geschäftlich/           # Kategorie
-│   ├── Projekt-Alpha/      # Projekt (dynamisch erstellt)
-│   │   ├── 2026-02-03_14-30__meeting-notes.json
-│   │   └── 2026-02-03_15-45__strategie.json
-│   └── Kunde-XYZ/
-│       └── 2026-02-03_16-45__anfrage.json
-├── privat/                 # Kategorie
-│   ├── Gesundheit/         # Projekt
-│   │   └── 2026-02-02_18-35__diagnose.json
-│   └── Allgemein/
-│       └── 2026-02-03_09-15__recherche.json
-├── Papierkorb/             # Soft-Delete (V3.0)
-│   └── [gelöschte Sessions mit originalem Pfad im Dateinamen]
-└── Export/
-    └── [PDF/MD Exporte]
+  geschäftlich/
+    Allgemein/
+    [Projektname]/
+  privat/
+    [Projektname]/
 ```
 
-### Kategorie- und Projektauswahl (Frontend)
+**Dateiformat:** `YYYY-MM-DD_HH-mm__slug.json`
 
-Die Hauptseite (index.html) enthält:
-- **Kategorie-Dropdown:** geschäftlich / privat
-- **Projekt-Dropdown:** Dynamisch geladen via `getProjects` API
-- **Neues Projekt erstellen:** Inline-Eingabefeld
+`archiv.html` rendert alle Session-Typen:
+- Standard-Session (Fragen-Analyse / Cross-Over): zeigt Problem + Synthese
+- `sessionType: "discussion"`: zeigt Frage, Divergenz-Score, Synthese
 
 ---
 
-## 7. Workflow-Beschreibung
+## 10. Prompt-Design
 
-### Template-Auswahl (index.html State 0)
+### Broadcast-Prompt (D2)
 
-Auf der Hauptseite wählt der Nutzer zwischen zwei Templates. Bei "Cross-Over-Analyse" werden die Formulardaten via `sessionStorage` übergeben und der Browser wechselt zu `extended.html`.
-
-### Standard-Template: Fragen-Analyse (6 States)
-
+Strikt strukturiert, Modell darf NUR den [POSITION]-Block ausgeben:
 ```
-State 0: PROBLEM_INPUT (Kategorie/Projekt-Auswahl + Template-Wahl)
-    │
-    ▼ [Prompts generieren]
-State 1: PHASE1_PROMPTS (Kopier-Buttons für 2–4 KIs)
-    │
-    ▼ [KI-Outputs einfügen → Fragen analysieren]
-State 2: QUESTIONS_INPUT (leere Felder = KI nicht gefragt)
-    │  Deduplizierung via Gemini API
-    ▼
-State 3: ANSWERS_INPUT
-    │
-    ▼ [Solve-Prompts generieren]
-State 4: PHASE2_PROMPTS (Kopier-Buttons für 2–4 KIs)
-    │
-    ▼ [KI-Outputs einfügen → Synthese starten]
-State 5: SYNTHESIS (Gemini synthetisiert alle beteiligten KIs)
-    │
-    ▼ [Session speichern → Google Drive]
+[POSITION]
+KERNTHESE: <ein Satz>
+BEGRUENDUNG: <max. 800 Wörter>
+ANNAHMEN: <Aufzählung>
+RISIKEN: <Aufzählung>
+KONFIDENZ: <0-100>
+UMSTIMMBAR_DURCH: <was würde diese Position kippen?>
+[/POSITION]
 ```
 
-### Extended-Template: Cross-Over-Analyse (9 States)
+### Kritik-Prompt (D4)
 
+Gibt Modell seine eigene Position + alle Gegenpositionen.  
+Antwort-Format: `[KRITIK] AN_P2: <Kritik> AN_P3: <Kritik> [/KRITIK]`
+
+### Revisions-Prompt (D5)
+
+Gibt Modell seine ursprüngliche Position + alle empfangenen Kritiken.  
+Antwort-Format:
 ```
-State 0: PROBLEM_INPUT (identisch mit Standard)
-    │
-State 1: PHASE1_PROMPTS → an 2–4 KIs schicken
-State 2: KI-FRAGEN einfügen (leer = nicht gefragt)
-State 3: FRAGEN BEANTWORTEN (dedupliziert)
-State 4: PHASE2_PROMPTS (Runde 1) → unabhängige Lösungen
-State 5: LÖSUNGEN R1 einfügen
-    │
-    ▼ [Cross-Review generieren]
-State 6: CROSS-REVIEW PROMPTS (Tab pro KI)
-         Jede KI sieht: eigene Antwort + Antworten ALLER anderen
-         Output-Struktur: [ÜBERNAHMEN] [KRITIK] [VERBESSERTE_GESAMTANTWORT]
-State 7: LÖSUNGEN R2 einfügen (überarbeitet)
-    │
-    ▼ [Finale Synthese]
-State 8: FINALE SYNTHESE (Gemini über alle überarbeiteten Lösungen)
-    │
-    ▼ [Session speichern → selbes Archiv wie Standard-Template]
+[REVISION]
+KERNTHESE_NEU: ...
+BEGRUENDUNG_NEU: ...
+KONZESSIONEN: ...
+HALTUNG: ...
+KONFIDENZ_NEU: <0-100>
+[/REVISION]
 ```
 
-### Deduplizierungsprozess
-
-**Problem:** Drei KIs stellen zusammen ~30 Fragen, viele davon semantisch identisch.
-
-**Lösung (V2+):** Gemini API (semantisch)
-- Ergebnis: 5-8 präzise, deduplizierte Fragen
-
-**V3.0+ Fix:** Robuste JSON-Extraktion für "chatty" Gemini 3 Modelle:
-```javascript
-// Regex-Extraktion für JSON-Arrays aus Gemini-Output
-const jsonMatch = rawText.match(/\[\s*\{[\s\S]*\}\s*\]/);
-if (jsonMatch) {
-  questions = JSON.parse(jsonMatch[0]);
-}
-```
-
----
-
-## 8. Prompt-Templates
-
-### Questions-Template V2 (SYSTEM)
-
-```
-You are a strict question-generation engine.
-
-Your task is to identify and ask ONLY the clarifying questions that are truly necessary to solve the user's problem later.
-
-ABSOLUTE RULES (non-negotiable):
-- Output ONLY the [QUESTIONS] block defined below.
-- Do NOT add any text before or after the [QUESTIONS] block.
-- Do NOT add explanations, suggestions, confirmations, summaries, or follow-up offers.
-- Do NOT ask the user if they want to continue.
-- If these rules are violated, the output is invalid.
-
-QUESTION RULES:
-- Ask as many questions as necessary, and as few as possible.
-- Stop asking questions as soon as additional questions would not materially improve solution quality.
-- Questions must be concrete, non-overlapping, and decision-relevant.
-- Every question must be assigned exactly one priority (P1, P2, or P3) and exactly one tag.
-
-LANGUAGE: Respond in German.
-
-You must internally verify compliance with all rules before responding.
-If compliance is not met, correct the output silently before returning it.
-```
-
-### Questions-Template V2 (USER)
-
-```
-[PROBLEM]
-{PROBLEM_TEXT}
-[/PROBLEM]
-
-[TASK]
-Generate only the clarifying questions required to solve the problem properly later.
-Use your judgment to determine how many questions are needed.
-Do not aim for a target number.
-
-[OUTPUT_FORMAT]
-Return EXACTLY the following structure and nothing else:
-
-[QUESTIONS]
-1. (P1) (TAG:{TAG}) {Question text}
-2. (P2) (TAG:{TAG}) {Question text}
-...
-[/QUESTIONS]
-
-ALLOWED TAGS (choose exactly one per question):
-objective | constraints | timeline | stakeholders | data | preferences | risks | legal | medical | technical | financial | communication | other
-
-PRIORITY DEFINITIONS:
-- P1 = blocking (must be answered before any solution is possible)
-- P2 = important (significantly improves solution quality)
-- P3 = optional (nice to have, refinement only)
-[/OUTPUT_FORMAT]
-```
-
-### Solve-Template V2 (SYSTEM)
-
-```
-You are a precise solution-generation engine.
-
-Based on the clarified problem and Q&A, provide a structured solution.
-
-ABSOLUTE RULES (non-negotiable):
-- Output ONLY the blocks defined below.
-- Do NOT add any text before or after the defined blocks.
-- Do NOT add explanations, suggestions, confirmations, or follow-up offers.
-- If these rules are violated, the output is invalid.
-
-LANGUAGE: Respond in German.
-
-You must internally verify compliance with all rules before responding.
-If compliance is not met, correct the output silently before returning it.
-```
-
----
-
-## 9. Backend-Code (Google Apps Script)
-
-### Haupt-Router (doPost)
-
-```javascript
-function doPost(e) {
-  try {
-    const data = JSON.parse(e.postData.contents);
-    const action = data.action;
-
-    let result;
-    switch(action) {
-      case 'saveSession':
-        result = handleSaveSession(data);
-        break;
-      case 'listSessions':
-        result = handleListSessions();
-        break;
-      case 'getSession':
-        result = handleGetSession(data.id);
-        break;
-      case 'getProjects':
-        result = handleGetProjects(data.category);
-        break;
-      case 'deleteSession':
-        result = handleDeleteSession(data.id);
-        break;
-      case 'synthesize':
-        result = handleSynthesize(data);
-        break;
-      case 'deduplicateQuestions':
-        result = handleDeduplicateQuestions(data);
-        break;
-      case 'saveExport':
-        result = handleSaveExport(data);
-        break;
-      default:
-        result = errorResponse('Unknown action: ' + action);
-    }
-
-    return outputJSON(result);
-
-  } catch (error) {
-    return outputJSON({
-      status: 'error',
-      message: error.toString()
-    });
-  }
-}
-```
-
-### doGet (V3.0: CORS-Fix mit outputJSON)
-
-```javascript
-function doGet(e) {
-  try {
-    const action = e.parameter.action;
-
-    switch(action) {
-      case 'listSessions':
-        return outputJSON(handleListSessions());
-      case 'getSession':
-        return outputJSON(handleGetSession(e.parameter.id));
-      case 'getProjects':
-        return outputJSON(handleGetProjects(e.parameter.category));
-      default:
-        return outputJSON(errorResponse('Unknown action'));
-    }
-  } catch (error) {
-    return outputJSON({ status: 'error', message: error.toString() });
-  }
-}
-```
-
-### outputJSON Helper (V3.0 CORS-Fix)
-
-```javascript
-function outputJSON(data) {
-  return ContentService.createTextOutput(JSON.stringify(data))
-    .setMimeType(ContentService.MimeType.JSON);
-}
-```
-
-### handleGetProjects (V3.0)
-
-```javascript
-function handleGetProjects(category) {
-  const rootFolder = getOrCreateFolder(SETTINGS.ROOT_FOLDER_NAME);
-  const catFolder = getOrCreateFolder(category, rootFolder);
-
-  const projects = [];
-  const folders = catFolder.getFolders();
-
-  while (folders.hasNext()) {
-    const folder = folders.next();
-    const name = folder.getName();
-    if (name !== 'Export' && name !== 'Papierkorb') {
-      projects.push(name);
-    }
-  }
-
-  projects.sort();
-  return successResponse({ projects: projects });
-}
-```
-
-### handleDeleteSession (V3.0 Soft-Delete)
-
-```javascript
-function handleDeleteSession(fileId) {
-  const rootFolder = getOrCreateFolder(SETTINGS.ROOT_FOLDER_NAME);
-  const trashFolder = getOrCreateFolder('Papierkorb', rootFolder);
-
-  const file = DriveApp.getFileById(fileId);
-  const originalName = file.getName();
-  const parents = file.getParents();
-
-  let originalPath = '';
-  if (parents.hasNext()) {
-    const parent = parents.next();
-    const grandparents = parent.getParents();
-    if (grandparents.hasNext()) {
-      originalPath = grandparents.next().getName() + '_' + parent.getName() + '_';
-    }
-  }
-
-  // Verschieben statt löschen
-  file.moveTo(trashFolder);
-  file.setName(originalPath + originalName);
-
-  return successResponse({ message: 'Session in Papierkorb verschoben' });
-}
-```
-
-### handleSaveSession (V3.0: mit Kategorie/Projekt)
-
-```javascript
-function handleSaveSession(payload) {
-  const rootFolder = getOrCreateFolder(SETTINGS.ROOT_FOLDER_NAME);
-
-  const sessionContent = payload.data || {};
-
-  // V3.0: Kategorie und Projekt aus Session-Daten
-  const category = sessionContent.category || 'privat';
-  const project = sessionContent.project || 'Allgemein';
-
-  const catFolder = getOrCreateFolder(category, rootFolder);
-  const projectFolder = getOrCreateFolder(project, catFolder);
-
-  const timestamp = Utilities.formatDate(new Date(), "GMT+1", "yyyy-MM-dd_HH-mm");
-  const slug = sessionContent.titleSlug || "session";
-  const fileName = `${timestamp}__${slug}.json`;
-
-  const file = projectFolder.createFile(
-    fileName,
-    JSON.stringify(sessionContent, null, 2),
-    MimeType.PLAIN_TEXT
-  );
-
-  return successResponse({
-    id: file.getId(),
-    name: fileName,
-    slug: slug,
-    category: category,
-    project: project
-  });
-}
-```
-
-### handleDeduplicateQuestions (V3.6: Semantische Deduplizierung)
-
-```javascript
-function handleDeduplicateQuestions(data) {
-  const apiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${SETTINGS.MODEL}:generateContent?key=${apiKey}`;
-
-  const MAX_CONTEXT_LENGTH = 50000;
-  let problemContext = data.originalProblem || "";
-  if (problemContext.length > MAX_CONTEXT_LENGTH) {
-    problemContext = problemContext.substring(0, MAX_CONTEXT_LENGTH) + "... [gekürzt]";
-  }
-
-  const chatgptQs = (data.questions.chatgpt || []).map((q, i) => ({ id: `C${i+1}`, text: q, source: "ChatGPT" }));
-  const claudeQs  = (data.questions.claude  || []).map((q, i) => ({ id: `L${i+1}`, text: q, source: "Claude"  }));
-  const geminiQs  = (data.questions.gemini  || []).map((q, i) => ({ id: `G${i+1}`, text: q, source: "Gemini"  }));
-  const allQuestions = [...chatgptQs, ...claudeQs, ...geminiQs];
-  const totalInput = allQuestions.length;
-
-  const prompt = `
-Du bist Experte für die Analyse von Klärungsfragen. Drei KI-Assistenten haben zu einem Problem jeweils Rückfragen gestellt.
-
-[PROBLEM KONTEXT]
-${problemContext}
-[/PROBLEM KONTEXT]
-
-[EINGANGS-LISTE: ${totalInput} Fragen]
-${allQuestions.map(q => `[${q.id}] (${q.source}): ${q.text}`).join('\n')}
-[/EINGANGS-LISTE]
-
-[ENTSCHEIDUNGSREGELN]
-
-ZUSAMMENFASSEN – wenn Fragen dieselbe Information erfragen, nur anders formuliert:
-- "Nutzt du AID-System?" + "Nutzt du Closed-Loop?" + "Nutzt du automatisierte Funktionen?" → EINE Frage
-- "Welche Sportart?" + "Welcher Sport und wie lange?" + "Ausdauer oder Kraft?" → EINE Frage
-- Faustregel: Kann der Nutzer beide Fragen mit einer einzigen Antwort beantworten? → Zusammenfassen.
-
-GETRENNT HALTEN – wenn Fragen verschiedene Aspekte ansprechen:
-- "Wann tritt die Hypo auf?" ≠ "Wie tief fallen die Werte?"
-- "Insulindosis anpassen?" ≠ "Kohlenhydrate essen?"
-- Faustregel: Braucht der Nutzer zwei separate Antworten? → Getrennt lassen.
-
-ZIEL: 50–70% der Eingangsfragen behalten. Wähle bei Zusammenfassungen die präziseste Formulierung.
-
-[OUTPUT FORMAT]
-Antworte NUR mit einem JSON-Array, kein Text davor oder danach:
-[
-  {
-    "question": "Beste konsolidierte Formulierung",
-    "priority": "P1|P2|P3",
-    "sources": ["ChatGPT", "Claude", "Gemini"],
-    "mapped_ids": ["C5", "L2", "G1"],
-    "reason": "Zusammengefasst weil: / Behalten weil:"
-  }
-]
-`;
-
-  const payload = {
-    contents: [{ parts: [{ text: prompt }] }],
-    generationConfig: {
-      temperature: 0.1,
-      responseMimeType: "application/json"
-    }
-  };
-
-  try {
-    const response = UrlFetchApp.fetch(url, {
-      method: "post",
-      contentType: "application/json",
-      payload: JSON.stringify(payload),
-      muteHttpExceptions: true
-    });
-
-    const result = JSON.parse(response.getContentText());
-    if (result.error) return errorResponse("API Error: " + result.error.message);
-    if (!result.candidates || !result.candidates[0].content) return errorResponse("Leere Antwort von KI");
-
-    let rawText = result.candidates[0].content.parts[0].text.trim();
-
-    let cleanArray;
-    try {
-      const jsonMatch = rawText.match(/\[\s*\{[\s\S]*\}\s*\]/);
-      cleanArray = JSON.parse(jsonMatch ? jsonMatch[0] : rawText);
-    } catch (parseError) {
-      cleanArray = JSON.parse(rawText);
-    }
-
-    console.log(`Deduplication: ${totalInput} → ${cleanArray.length} Fragen`);
-    return successResponse(cleanArray);
-
-  } catch (e) {
-    console.error("Deduplication Error: " + e.toString());
-    return errorResponse("Backend Fehler: " + e.toString());
-  }
-}
-```
-
-### handleSynthesize (V3.0: Null-Checks + explizite Tags)
-
-```javascript
-function handleSynthesize(data) {
-  const apiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent?key=${apiKey}`;
-
-  // V3.0: Null-safe Zugriff auf solutions
-  const solutions = data.solutions || {};
-
-  const prompt = `
-Du bist ein erfahrener Strategieberater. Drei KI-Assistenten haben unabhängig voneinander Lösungen für folgendes Problem erarbeitet:
-
-[PROBLEM]
-${data.problem || 'Kein Problem angegeben'}
-[/PROBLEM]
-
-[CHATGPT_LÖSUNG]
-${solutions.chatgpt || 'Keine Lösung von ChatGPT'}
-[/CHATGPT_LÖSUNG]
-
-[CLAUDE_LÖSUNG]
-${solutions.claude || 'Keine Lösung von Claude'}
-[/CLAUDE_LÖSUNG]
-
-[GEMINI_LÖSUNG]
-${solutions.gemini || 'Keine Lösung von Gemini'}
-[/GEMINI_LÖSUNG]
-
-AUFGABE:
-Erstelle eine synthetisierte Master-Lösung, die die stärksten Punkte aller drei KIs kombiniert.
-
-WICHTIG:
-- Wenn alle drei KIs einen Punkt betonen, ist er besonders relevant
-- Wenn nur eine KI einen Punkt erwähnt, prüfe kritisch ob er wertvoll ist
-- Strukturiere die Lösung klar mit [SOLUTION], [ACTION_PLAN], [RISKS], [ASSUMPTIONS]
-- Antworte auf Deutsch
-`;
-
-  const payload = {
-    contents: [{ parts: [{ text: prompt }] }],
-    generationConfig: { temperature: 0.7 }
-  };
-
-  const response = UrlFetchApp.fetch(url, {
-    method: "post",
-    contentType: "application/json",
-    payload: JSON.stringify(payload),
-    muteHttpExceptions: true
-  });
-
-  const result = JSON.parse(response.getContentText());
-
-  if (result.error) {
-    return errorResponse(result.error.message);
-  }
-
-  const synthesisText = result.candidates[0].content.parts[0].text;
-  return successResponse({ synthesis: synthesisText });
-}
-```
-
----
-
-## 10. Frontend-Code (Wichtige Funktionen)
-
-### formatMarkdown (robust)
-
-```javascript
-function formatMarkdown(input) {
-  let text = '';
-  if (typeof input === 'string') {
-    text = input;
-  } else if (input == null) {
-    text = '';
-  } else if (typeof input === 'number' || typeof input === 'boolean') {
-    text = String(input);
-  } else if (typeof input === 'object') {
-    if (typeof input.synthesis === 'string') text = input.synthesis;
-    else if (typeof input.text === 'string') text = input.text;
-    else {
-      try { text = JSON.stringify(input, null, 2); } catch { text = String(input); }
-    }
-  } else {
-    text = String(input);
-  }
-
-  text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-
-  text = text
-    .replace(/^###\s+(.+)$/gm, '<h4>$1</h4>')
-    .replace(/^##\s+(.+)$/gm, '<h3>$1</h3>')
-    .replace(/^#\s+(.+)$/gm, '<h2>$1</h2>');
-
-  text = text
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>');
-
-  text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
-
-  text = text
-    .split(/\n{2,}/)
-    .map(para => `<p>${para.replace(/\n/g, '<br>')}</p>`)
-    .join('');
-
-  return text;
-}
-```
-
-### extractSynthesisText
-
-```javascript
-function extractSynthesisText(synthesis) {
-  if (!synthesis) return 'Keine Synthese vorhanden';
-
-  // Fall 1: Bereits ein String
-  if (typeof synthesis === 'string') {
-    try {
-      const parsed = JSON.parse(synthesis);
-      if (parsed.data && parsed.data.synthesis) {
-        return parsed.data.synthesis;
-      }
-      if (parsed.synthesis) {
-        return parsed.synthesis;
-      }
-    } catch (e) {
-      // Kein JSON, direkt zurückgeben
-      return synthesis;
-    }
-    return synthesis;
-  }
-
-  // Fall 2: Objekt mit data.synthesis
-  if (typeof synthesis === 'object') {
-    if (synthesis.data && synthesis.data.synthesis) {
-      return synthesis.data.synthesis;
-    }
-    if (synthesis.synthesis) {
-      return synthesis.synthesis;
-    }
-    if (synthesis.text) {
-      return synthesis.text;
-    }
-    return JSON.stringify(synthesis, null, 2);
-  }
-
-  return String(synthesis);
-}
-```
-
-### loadProjects (V3.0)
-
-```javascript
-async function loadProjects(category) {
-  try {
-    const response = await fetch(`${BACKEND_URL}?action=getProjects&category=${category}`);
-    const result = await response.json();
-
-    if (result.status === 'success') {
-      return result.data.projects || [];
-    }
-    return [];
-  } catch (error) {
-    console.error('Error loading projects:', error);
-    return [];
-  }
-}
-```
-
-### updateProjectDropdown (V3.0)
-
-```javascript
-async function updateProjectDropdown() {
-  const category = document.getElementById('categorySelect').value;
-  const projectSelect = document.getElementById('projectSelect');
-
-  projectSelect.innerHTML = '<option value="">Projekt wählen...</option>';
-
-  const projects = await loadProjects(category);
-
-  projects.forEach(project => {
-    const option = document.createElement('option');
-    option.value = project;
-    option.textContent = project;
-    projectSelect.appendChild(option);
-  });
-
-  // Option für neues Projekt
-  const newOption = document.createElement('option');
-  newOption.value = '__new__';
-  newOption.textContent = '+ Neues Projekt erstellen';
-  projectSelect.appendChild(newOption);
-}
-```
-
-### generateSessionMarkdown
-
-```javascript
-function generateSessionMarkdown(session) {
-  const data = session.data || session;
-
-  const title = data.name || data.title || data.titleSlug || 'Session';
-  const date = new Date(data.createdAt || Date.now()).toLocaleDateString('de-DE');
-  const problem = data.problem || 'Kein Problem';
-
-  // Synthese extrahieren
-  let synthesisText = extractSynthesisText(data.synthesis);
-
-  let md = `# ${title}\n`;
-  md += `**Datum:** ${date}\n\n`;
-  md += `---\n\n`;
-
-  md += `## Problemstellung\n\n${problem}\n\n`;
-
-  md += `## Fragen & Antworten\n\n`;
-  const questions = data.deduplicatedQuestions || [];
-  const answers = data.answers || [];
-
-  if (questions.length > 0) {
-    questions.forEach((q, i) => {
-      const questionText = typeof q === 'string' ? q : (q.question || 'Frage');
-      const answer = answers[i] || '-';
-      md += `### Frage ${i+1}\n`;
-      md += `**${questionText}**\n\n`;
-      md += `*Antwort:* ${answer}\n\n`;
-    });
-  }
-
-  const phase2 = data.phase2Outputs || {};
-  md += `## KI-Lösungen\n\n`;
-  md += `### ChatGPT\n${phase2.chatgpt || 'Nicht vorhanden'}\n\n`;
-  md += `### Claude\n${phase2.claude || 'Nicht vorhanden'}\n\n`;
-  md += `### Gemini\n${phase2.gemini || 'Nicht vorhanden'}\n\n`;
-
-  md += `## Synthese\n\n${synthesisText}\n\n`;
-
-  md += `---\n*Exportiert aus KI-Cockpit*\n`;
-
-  return md;
-}
-```
+### Parser-Robustheit (alle drei Parser)
+
+1. Optionalen `[BLOCK]...[/BLOCK]`-Wrapper extrahieren (Modelle fügen oft Text davor/danach ein)
+2. Schlüsselwörter per Regex finden, nach Position sortieren
+3. Textbereiche zwischen Schlüsselwörtern extrahieren
+4. Konfidenz-Felder defensiv zu Integer parsen (`parseInt` + `clamp(0,100)`)
 
 ---
 
 ## 11. Versionsgeschichte
 
-| Version | Datum | Änderungen |
-|---------|-------|------------|
-| V1.0 | 01.02.2026 | Initiale Version, Basis-Workflow |
-| V1.1 | 01.02.2026 | GitHub Pages Deployment |
-| V2.0 | 02.02.2026 | Session-Archiv, Export-Funktion, Synthese via Gemini |
-| V2.1 | 02.02.2026 | Smart Deduplication via Gemini API |
-| V2.2 | 02.02.2026 | Prompt-Templates V2 (gehärtet) |
-| V2.3 | 02.02.2026 | Bug-Fixes: titleSlug, Session-Laden |
-| V2.4 | 02.02.2026 | Bug-Fixes von Gemini (Backend) und ChatGPT (Frontend) |
-| V2.5 | 02.02.2026 | Fix: title undefined, displayTitle, synthesis object |
-| V2.6 | 02.02.2026 | UTF-8 Encoding, Synthese-Extraktion |
-| V2.6.1 | 02.02.2026 | Finaler Fix: Synthese im Markdown-Export |
-| **V3.0** | **03.02.2026** | **Neue Ordnerstruktur: geschäftlich/privat + Projekte** |
-| | | - Neue Backend-Funktionen: handleGetProjects(), handleDeleteSession() |
-| | | - Modifiziert: handleSaveSession() (Kategorie/Projekt-Support) |
-| | | - Modifiziert: handleListSessions() (alle Kategorien/Projekte durchsuchen) |
-| | | - Neue Frontend-Dateien: archiv.html, css/archiv.css, js/archiv.js |
-| | | - Kategorie- und Projekt-Auswahl auf Hauptseite |
-| | | - Archiv-Link im Header |
-| **V3.1** | **03.02.2026** | **Deduplizierung-Fix** |
-| | | - Frontend sendete `{questions: [...]}`, Backend erwartete direkt Array |
-| | | - Fix: `result.data.questions \|\| result.data` |
-| **V3.2** | **03.02.2026** | **Synthese-Fix** |
-| | | - Frontend sendete `data.responses`, Backend erwartete `data.solutions` |
-| | | - Fix: Frontend sendet jetzt `solutions` statt `responses` |
-| | | - Null-Checks in handleSynthesize() hinzugefügt |
-| **V3.3** | **03.02.2026** | **CORS-Fix für doGet()** |
-| | | - `errorResponse()` gab plain Object zurück statt ContentService |
-| | | - Fix: Alle doGet()-Returns durch `outputJSON()` gewrappt |
-| | | - Archiv-Seite kann jetzt Sessions laden |
-| **V3.4** | **03.02.2026** | **Gemini 3 "Chatty" Output Fix** |
-| | | - Gemini 3 pro preview fügt Text um JSON-Output hinzu |
-| | | - Fix: Regex-Extraktion `rawText.match(/\[\s*\{[\s\S]*\}\s*\]/)` |
-| | | - Explizite [OUTPUT]-Tags in Prompts |
-| **V3.4.1** | **03.02.2026** | **Asinito Corporate Identity Redesign** |
-| | | - Neues Branding: "Asinito" statt "KI-Cockpit" |
-| | | - Light Theme mit Corporate Colors (#ff6b36 Orange, #ffffff Background) |
-| | | - Inter Font Familie |
-| | | - Neuer Header mit Asinito Logo und Navigation |
-| | | - HTML-Struktur: Radio-Buttons → Select-Dropdowns für Kategorie/Projekt |
-| | | - DOMContentLoaded Handler komplett überarbeitet |
-| | | - generatePrompts() auf neue HTML-Struktur angepasst |
-| | | - Cache-Busting mit ?v= Parametern eingeführt |
-| **V3.4.2** | **03.02.2026** | **Project Dropdown Backend Response Fix** |
-| | | - Backend gibt `{geschäftlich: [...], privat: [...]}` Format zurück |
-| | | - updateProjectDropdown() korrigiert: `result.data[category]` statt `result.data.projects` |
-| | | - Projekt-Dropdown lädt jetzt korrekt existierende Projekte |
-| | | - Debug-Logging für Backend-Response hinzugefügt |
-| **V3.4.3** | **04.02.2026** | **Question Extraction Multi-Format Support** |
-| | | - `extractQuestionsFromText()` unterstützt 7 verschiedene Frage-Formate |
-| | | - Format 1: `1. (P1) (TAG:xxx) Question` |
-| | | - Format 2: `1. (P1) Question` (ohne TAG) |
-| | | - Format 3: `- (P1) Question` (mit Bullet) |
-| | | - Format 4: `1. Question?` (nur Nummer) |
-| | | - Format 5: `- Question?` (Bullet mit ?) |
-| | | - Format 6: `**Frage:** Question?` (Markdown) |
-| | | - Format 7: Zeilen die mit ? enden (min. 20 Zeichen) |
-| **V3.4.4** | **04.02.2026** | **Debug Logging für Fragen-Deduplizierung** |
-| | | - Debug-Logging für extrahierte Fragen hinzugefügt |
-| | | - Logging für API-Requests und Responses |
-| **V3.4.5** | **04.02.2026** | **Enhanced Deduplication Debugging** |
-| | | - Erweiterte Console-Logs für kompletten Deduplizierungs-Prozess |
-| | | - Warnung bei sehr langem Problem-Text (>50000 chars) |
-| | | - Logging zeigt Input vs Output Fragen-Anzahl |
-| | | - Toast zeigt jetzt original + deduplizierte Anzahl |
-| **V3.5.0** | **04.02.2026** | **Backend Deduplizierung Optimierung** |
-| | | - Neuer Backend-Prompt mit "Audit-Logik" |
-| | | - 50.000 Zeichen Kontext-Limit |
-| | | - Temperature 0.1 für präzisere Ergebnisse |
-| | | - Ziel-Output Formel: 60%-100% der Eingangsfragen |
-| **V3.5.1** | **04.02.2026** | **Backend Deduplizierung Fix - ID-basiertes Audit** |
-| | | - Problem: Gemini fasste zu aggressiv zusammen (22 → 6 Fragen) |
-| | | - Lösung: Invertierte Logik ("Behalte alles, außer exakte Duplikate") |
-| | | - Jede Frage bekommt eine ID (C1, L1, G1) |
-| | | - Neues Feld `mapped_ids` zeigt Zusammenfassungen |
-| | | - Temperature 0.0 für maximale Präzision |
-| | | - Test: 15 Input → 10 Output (5 echte Duplikate erkannt) ✅ |
-| **V3.6.1** | **04.04.2026** | **Deduplizierung: Semantische Zusammenfassung (nicht nur exakte Duplikate)** |
-| | | - Neuer Prompt mit klaren ZUSAMMENFASSEN/GETRENNT-HALTEN Regeln |
-| | | - Zielkorridor 50–70% (verhindert beide Extreme: 23→23 und 22→6) |
-| | | - Beispiele im Prompt für Grenzfälle |
-| | | - Temperature 0.1, responseMimeType: application/json |
-| **V3.6** | **04.04.2026** | **Bugfix: Gemini-Modell + Drive-Speicher-Diagnose + Dropdown-Duplikate** |
-| | | - **KRITISCH (Backend):** `gemini-3-pro-preview` existiert nicht → auf `gemini-2.0-flash` umstellen |
-| | | - **Frontend:** `saveSession()` prüft jetzt wirklich die Backend-Antwort |
-| | | - Toast unterscheidet jetzt: ✅ Google Drive, ⚠️ nur lokal, ❌ Fehler |
-| | | - localStorage immer als Sicherheitsnetz (vor dem Backend-Call) |
-| | | - CSS: `.toast.warning` (gelbe Farbe) hinzugefügt |
-| | | - **Fix: Projekte erschienen doppelt im Dropdown** (doppelter Event-Handler entfernt) |
-| **V4.0** | **04.04.2026** | **Archiv-Redesign: Zwei-Panel-Layout** |
-| | | - Komplettes Rewrite von archiv.html, archiv.css, archiv.js |
-| | | - Zwei-Panel-Layout: links Filter+Session-Liste (40%), rechts Vorschau (60%) |
-| | | - 3 Buttons pro Session: Löschen, Laden (öffnet session.html), Bearbeiten (inline) |
-| | | - Suchfeld erscheint wenn Kategorie + Projekt gewählt |
-| | | - Projektlöschen-Button (🗑) neben Projekt-Dropdown |
-| | | - Backend: `moveSession`, `deleteProject` Actions hinzugefügt |
-| **V4.1** | **04.04.2026** | **session.html: Einzelansicht mit editierbarem Titel** |
-| | | - Neue Seite `session.html` + `js/session.js` + `css/session.css` |
-| | | - Vollständige Session-Ansicht: Problem, Q&A, 3 KI-Lösungen, Synthese |
-| | | - ✏️ Button → inline Titel-Edit → Speichern via `renameSession` GAS |
-| | | - Kopier-Buttons: Als Markdown + Als TXT |
-| **V4.2** | **04.04.2026** | **Titel-Sync Fix: handleListSessions liest content.name** |
-| | | - Nach Umbenennen zeigte Archiv noch den alten Dateinamen-Slug |
-| | | - Fix: `handleListSessions` liest `content.name` aus JSON-Inhalt der Datei |
-| | | - Fallback auf Slug wenn kein name-Feld vorhanden |
-| **V4.3** | **04.04.2026** | **Extended-Template: Cross-Over-Analyse (9 States)** |
-| | | - Neue Seiten: `extended.html` + `js/extended.js` + `css/extended.css` |
-| | | - 9-State Workflow: Runde 1 → Cross-Review → Runde 2 → Synthese |
-| | | - Cross-Review: Jede KI bewertet alle anderen (Prompt: [ÜBERNAHMEN] [KRITIK] [VERBESSERTE_GESAMTANTWORT]) |
-| | | - Tab-Navigation für Cross-Review Prompts (ein Tab pro KI) |
-| **V4.4** | **04.04.2026** | **Navigation: "Erweitert" in allen Seiten** |
-| | | - Nav-Link "Erweitert" in index.html, archiv.html, session.html ergänzt |
-| **V4.5** | **04.04.2026** | **Template-Auswahl auf Hauptseite** |
-| | | - Zweite Template-Karte "Cross-Over-Analyse" auf index.html |
-| | | - Bei Wahl: Formulardaten via `sessionStorage` übergeben → Redirect zu extended.html |
-| | | - extended.js liest Handoff und befüllt Formular automatisch |
-| **V4.6** | **04.04.2026** | **DeepSeek als 4. KI + dynamischer Cross-Review** |
-| | | - DeepSeek (lila, #7c3aed) in beiden Templates: Fragen, Lösungen R1, Cross-Review, Lösungen R2 |
-| | | - Alle KI-Felder optional: leeres Feld = KI nicht gefragt, wird übersprungen |
-| | | - Cross-Review dynamisch: jede teilnehmende KI sieht alle anderen (1–3 andere KIs) |
-| | | - `generateCrossReviewPrompt()` nimmt jetzt Array `others[]` statt hardcodierte 2 |
-| | | - CSS-Grid von `repeat(3, 1fr)` auf `repeat(auto-fit, minmax(200px, 1fr))` |
-| | | - Tabs in State 6 werden für nicht-teilnehmende KIs ausgeblendet |
+| Version | Datum | Was ist neu |
+|---|---|---|
+| **V5.0** | Juni 2026 | **LLM-Diskussion Stufe 2**: D4 Kreuzkritik, D5 Revision, 7 State-Dots. Neue Funktionen: `discussionStartDebate`, `discussionCollectCritiques`, `discussionCollectRevisions`. Neue Prompts: `buildCritiquePrompt`, `buildRevisionPrompt`. Neue Parser: `parseCritique`, `parseRevision`. Revisionen fließen in Synthese ein (revidierte Kernthese/Konfidenz ersetzt Original). |
+| **V4.0** | Mai 2026 | LLM-Diskussion Stufe 1 komplett: D0 Eingabe, D1 Dossier-Gate, D2 Broadcast (5 Modelle), D3 Divergenz-Heatmap + Direkt-Synthese. Neue Dateien: `discussion.html`, `app_discussion.js`, `prompts_discussion.js`, `storage_discussion.js`. |
+| **V3.10** | Mai 2026 | Backend: `analyzeDivergence` + `synthesizeDiscussion` Actions. Gemini-Fallback-Kette (3.5-flash → 3.1-flash-lite → 2.5-flash). `buildDivergencePrompt`, `buildDiscussionSynthesisPrompt`, `selectMostDivergent`, `clampScore`. |
+| **V3.9** | April 2026 | Modellwechsel gemini-2.5 → gemini-3.5-flash (2.5 abgekündigt, Shutdown 16.10.2026). Zentraler `callGemini()` mit Retry + exponentiellem Backoff. `extractGeminiText()` Multi-Part-sicher. |
+| **V3.8** | März 2026 | `renameSession` Action. `handleListSessions` liest `name` aus JSON-Inhalt (korrekt nach Umbenennung). |
+| **V3.7** | März 2026 | `moveSession` Action: verschiebt Drive-Datei + aktualisiert JSON-Felder `category`/`project`. |
+| **V3.6** | Februar 2026 | `deleteProject` Action (nur leere Ordner). |
+| **V3.5** | Februar 2026 | Cross-Over-Analyse (`extended.html`) mit dynamischer KI-Auswahl 2–4 Modelle. |
+| **V3.0** | Februar 2026 | Google Drive Archiv, Kategorie/Projekt-Ordnerstruktur, `getProjects`. |
+| **V2.0** | Februar 2026 | DeepSeek als 4. KI, dynamisches Cross-Review für 2–4 KIs. |
+| **V1.0** | Februar 2026 | Initiale Version: ChatGPT, Claude, Gemini — Fragen-Analyse (6 States). |
 
 ---
 
-## 12. Bekannte Probleme und Lösungen
+## 12. Bekannte Eigenheiten & Lösungen
 
-### Problem: Quota Exceeded (Gemini API)
+### GAS Cold Start (30–60 Sekunden)
+Bei ersten Anfragen nach längerer Inaktivität braucht Google Apps Script bis zu 60 Sekunden. Betrifft vor allem `analyzeDivergence` und `synthesizeDiscussion`. Kein Bug — normales GAS-Verhalten. Das Frontend zeigt Toast-Meldungen während der Call läuft.
 
-**Symptom:** `RESOURCE_EXHAUSTED`, `limit: 0`
+### Gemini "Chatty" Responses
+Gemini 3.x fügt trotz "nur JSON"-Instruktion gelegentlich Text vor/nach dem JSON-Array ein. Das Backend löst das mit `rawText.match(/\[\s*\{[\s\S]*\}\s*\]/)` — dasselbe Muster wie bei `deduplicateQuestions`.
 
-**Ursache:** Free-Tier-Limit erreicht oder Sandbox-Modus aktiv (EU/EEA)
+### Modell-Korrelations-Warnung
+Die Synthese enthält einen expliziten Hinweis: Wenn alle Modelle zur selben Schlussfolgerung kommen (Konvergenz), ist das **schwache Evidenz** — korrelierte Trainingsdaten können zu falscher Einigkeit führen. Dieser Hinweis ist im `synthesizeDiscussion`-Prompt hartkodiert.
 
-**Lösung:**
-1. Google Cloud Billing aktivieren (kostenloser Testzeitraum)
-2. Projekt aus Sandbox-Modus befreien
-3. Alternative: Modell wechseln (gemini-1.5-flash hat höheres Limit)
+### Race Condition bei async Calls (nur Entwicklung)
+Wenn man während des laufenden `analyzeDivergence`-Calls manuell State überschreibt, kann der später zurückkommende Call den State zurücksetzen. Im Live-Betrieb kein Problem — der Debatte-Button erscheint erst nach Abschluss des Calls.
 
-### Problem: forEach is not a function (V3.1)
-
-**Symptom:** Fehler beim Verarbeiten der deduplizierten Fragen
-
-**Ursache:** Backend gibt `{questions: [...]}` zurück, Frontend erwartet direktes Array
-
-**Lösung:** `result.data.questions || result.data` verwenden
-
-### Problem: Synthese erhält undefined solutions (V3.2)
-
-**Symptom:** Backend-Log zeigt `undefined` für alle drei KI-Lösungen
-
-**Ursache:** Frontend sendet `responses`, Backend erwartet `solutions`
-
-**Lösung:** Frontend angepasst: `solutions: { chatgpt, claude, gemini }`
-
-### Problem: CORS "Failed to fetch" im Archiv (V3.3)
-
-**Symptom:** Archiv-Seite kann keine Sessions laden
-
-**Ursache:** `errorResponse()` gibt plain Object zurück, nicht ContentService
-
-**Lösung:** Alle doGet()-Returns durch `outputJSON()` wrappen
-
-### Problem: Gemini 3 fügt Text um JSON hinzu (V3.4)
-
-**Symptom:** `JSON.parse()` schlägt fehl, weil Output wie "Hier ist das JSON: [...]" aussieht
-
-**Ursache:** Gemini 3 pro preview ist "chattier" als ältere Modelle
-
-**Lösung:** Regex-Extraktion: `rawText.match(/\[\s*\{[\s\S]*\}\s*\]/)`
-
-### Problem: Session-Daten nicht geladen
-
-**Symptom:** Alle Felder zeigen "Nicht vorhanden"
-
-**Ursache:** Verschachtelte Datenstruktur `{ action: "saveSession", data: {...} }`
-
-**Lösung:** Immer `session.data || session` prüfen
-
-### Problem: Synthese als JSON-String
-
-**Symptom:** `{"status":"success","data":{"synthesis":"..."}}`
-
-**Ursache:** Backend gibt verschachteltes Objekt zurück
-
-**Lösung:** `extractSynthesisText()` Funktion verwenden
-
-### Problem: Gemini API schlägt komplett fehl – Deduplizierung und Synthese funktionieren nicht (V3.6)
-
-**Symptom:** Deduplizierung fällt auf lokale Logik zurück ("Lokale Analyse verwendet"), Synthese produziert keine KI-Antwort. Keine sichtbare Fehlermeldung.
-
-**Ursache:** Das Backend-Modell `gemini-3-pro-preview` existiert nicht. Die Gemini API gibt einen 404-Fehler zurück, der im Backend als `errorResponse` weitergeleitet wird. Das Frontend fängt den Fehler still ab und nutzt Fallbacks.
-
-**Lösung (Backend):**
-1. Google Apps Script öffnen: https://script.google.com/
-2. In `SETTINGS` (Zeile ~8) ändern: `MODEL: "gemini-3-pro-preview"` → `MODEL: "gemini-2.0-flash"`
-3. **Neu deployen:** Bereitstellen → Bereitstellungen verwalten → Bearbeiten → Neue Version → Bereitstellen
-4. URL bleibt gleich, kein Frontend-Update nötig
-
-**Gültige Modelle (Stand April 2026):**
-- `gemini-2.0-flash` – empfohlen (stabil, kostenlos, schnell)
-- `gemini-2.5-pro-preview-03-25` – leistungsfähiger, aber experimentell
+### "Vibe" als Modell-Name
+In `DISCUSSION_MODELS` als fünftes Modell eingetragen. Gemeint ist ein vom Nutzer verwendetes Tool (z.B. Perplexity AI oder ähnliches). Der Name kann in `prompts_discussion.js` angepasst werden.
 
 ---
 
-### Problem: Google Drive Speichern schlägt still fehl (V3.6)
+## 13. URLs & Zugangsdaten
 
-**Symptom:** Toast zeigt "Session gespeichert!" aber nichts erscheint in Google Drive. Kein sichtbarer Fehler.
+| Resource | Info |
+|---|---|
+| GitHub Repository | https://github.com/mousso74/ki-cockpit |
+| Backend-URL | In `js/storage.js` als `BACKEND_URL` — aktuelle Deployment-URL |
+| Google Drive Archiv | Im Google Account des Eigentümers unter "KI-Cockpit-Archiv" |
 
-**Ursache:** Die alte `saveSession()`-Funktion hat die Backend-Antwort nie geprüft und immer `{ success: true }` zurückgegeben.
+**Beim Redeployment des Backends (nach Code-Änderungen in GAS):**
+1. Inhalt von `GAS_backend_v3.10_complete.js` in Google Apps Script einfügen
+2. "Bereitstellen" → "Neue Bereitstellung" → Typ: Web-App → Zugriff: Jeder
+3. Neue Deployment-URL in `js/storage.js` als `BACKEND_URL` eintragen
+4. Commit + Push zu GitHub
 
-**Lösung (Frontend, bereits implementiert in V3.6):**
-- `saveSession()` liest jetzt `response.json()` und prüft `result.status`
-- Bei Erfolg: ✅ "Session in Google Drive gespeichert!"
-- Bei Fallback: ⚠️ "Nur lokal gespeichert (Google Drive nicht erreichbar: ...)" mit Fehlergrund
-- localStorage wird immer zuerst als Sicherheitsnetz geschrieben
-
----
-
-### Problem: Projekte erscheinen doppelt im Dropdown (V3.6)
-
-**Symptom:** Alle Projekte tauchen zweimal in der Auswahlliste auf, sobald man die Kategorie wechselt.
-
-**Ursache:** Die Funktion `updateProjectDropdown()` wurde doppelt ausgelöst:
-1. Inline `onchange="updateProjectDropdown()"` im HTML-Element `<select id="categorySelect">`
-2. `addEventListener('change', ...)` in `app.js` (DOMContentLoaded)
-
-Da die Funktion `async` ist und einen Fetch macht, liefen beide Anfragen parallel und hängten beide ihre Ergebnisse ins Dropdown.
-
-**Lösung:** `onchange="updateProjectDropdown()"` aus dem `<select>`-Tag in `index.html` entfernt. Der Event-Listener in `app.js` reicht aus.
-
-**Regel:** Nie denselben Event sowohl inline im HTML als auch per `addEventListener` in JS registrieren.
-
----
-
-### Problem: Umlaute falsch kodiert
-
-**Symptom:** `Ã¤` statt `ä`
-
-**Ursache:** Fehlendes UTF-8 BOM im Export
-
-**Lösung:** `const bom = '\uFEFF'; new Blob([bom + md], { type: 'text/markdown;charset=utf-8' })`
-
----
-
-## 13. URLs und Zugangsdaten
-
-### Öffentliche URLs
-
-| Ressource | URL | Beschreibung |
-|-----------|-----|--------------|
-| **Live-App** | https://mousso74.github.io/ki-cockpit/ | Frontend (GitHub Pages) |
-| **Repository** | https://github.com/mousso74/ki-cockpit | Quellcode |
-| **Claude** | https://claude.ai/ | Lead-Architekt KI |
-| **ChatGPT** | https://chat.openai.com/ | Frontend-Spezialist KI |
-| **Gemini** | https://gemini.google.com/ | Backend-Spezialist KI |
-
-### Entwicklungs-URLs
-
-| Ressource | URL | Beschreibung |
-|-----------|-----|--------------|
-| **Google Apps Script** | https://script.google.com/ | Backend-Editor |
-| **Google AI Studio** | https://aistudio.google.com/ | API-Key-Verwaltung |
-| **Google Cloud Console** | https://console.cloud.google.com/ | Billing, Quota |
-
-### SENSIBLE URLs (NICHT ÖFFENTLICH TEILEN)
-
-| Ressource | URL | Sicherheitshinweis |
-|-----------|-----|-------------------|
-| **Backend V3.4** | `https://script.google.com/macros/s/AKfycbzdUdWbgjp0wofYk2M1Ui8FcaB10awsrgTzojOWaJS9jAXWzopQUdFBDxd0bu9D9z8p/exec` | Diese URL ermöglicht direkten Zugriff auf das Backend. Missbrauch könnte API-Kosten verursachen. |
-
-### API-Keys
-
-| Service | Speicherort | Hinweis |
-|---------|-------------|---------|
-| **Gemini API Key** | Google Apps Script → Projekteinstellungen → Script Properties → `GEMINI_API_KEY` | NIEMALS im Code hardcoden oder öffentlich teilen |
-
----
-
-## Anhang: Checkliste für neue Entwickler/KIs
-
-Falls eine andere KI dieses Projekt weiterentwickeln soll:
-
-1. **Repository klonen:** `git clone https://github.com/mousso74/ki-cockpit.git`
-
-2. **Claude Code installieren:** Via Anthropic-Dokumentation
-
-3. **Backend verstehen:**
-   - Öffne https://script.google.com/
-   - Suche nach "KI-Cockpit-Backend"
-   - Prüfe die `doPost()` und `doGet()` Funktionen
-
-4. **Wichtige Patterns:**
-   - Daten sind oft verschachtelt: `data.data.field`
-   - Synthese kann JSON-String sein: immer `extractSynthesisText()` nutzen
-   - Prompts müssen "gehärtet" sein: keine Extra-Ausgabe außerhalb der definierten Blöcke
-   - Gemini ist "chatty": Regex-Extraktion für JSON verwenden (`rawText.match(/\[\s*\{[\s\S]*\}\s*\]/)`)
-   - **Gemini-Modellname immer prüfen:** `SETTINGS.MODEL` in GAS muss ein gültiges Modell sein (z.B. `gemini-2.0-flash`). Ungültige Modelle scheitern still ohne Frontend-Fehlermeldung.
-   - **`saveSession()` gibt jetzt echtes Feedback:** `result.success && !result.fallback` = Drive OK, `result.fallback` = nur lokal gespeichert
-
-5. **Deployment-Workflow:**
-   - Frontend: `git push` → GitHub Pages aktualisiert automatisch
-   - Backend: Google Apps Script → Bereitstellen → Neue Bereitstellung
-
-6. **V3.0+ Ordnerstruktur:**
-   - Sessions werden in `KI-Cockpit-Archiv/{kategorie}/{projekt}/` gespeichert
-   - Soft-Delete verschiebt in `Papierkorb/`
-   - Export-Dateien in `Export/`
-
----
-
-*Dokumentation erstellt am 02.02.2026, aktualisiert am 03.02.2026 von Claude (Anthropic)*
-*Asinito Redesign und V3.4.2 Update am 03.02.2026*
-*Für Fragen: Kontext aus dieser README an eine neue KI übergeben*
+**GEMINI_API_KEY:** Wird in den Google Apps Script Script Properties hinterlegt (nicht im Code). Key: `GEMINI_API_KEY`.
